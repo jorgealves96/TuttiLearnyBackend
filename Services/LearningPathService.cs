@@ -101,12 +101,18 @@ namespace LearningAppNetCoreApi.Services
             return responseDto;
         }
 
-        public async Task<LearningPathResponseDto> CreateLearningPathAsync(string prompt, string userAuth0Id)
+        public async Task<LearningPathResponseDto> CreateLearningPathAsync(string prompt, string userAuth0Id, string? userName, string? userEmail)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Auth0Id == userAuth0Id);
             if (user == null)
             {
-                user = new User { Auth0Id = userAuth0Id, Email = "test@test.com", Name = "Test User" };
+                // Correctly create the user with data passed from the controller
+                user = new User
+                {
+                    Auth0Id = userAuth0Id,
+                    Email = userEmail ?? "Not provided",
+                    Name = userName ?? "Not provided"
+                };
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
             }
@@ -311,6 +317,22 @@ namespace LearningAppNetCoreApi.Services
                 Type = resource.Type.ToString(),
                 IsCompleted = resource.IsCompleted
             };
+        }
+
+        public async Task<bool> DeletePathAsync(int pathId)
+        {
+            var pathToDelete = await _context.LearningPaths.FindAsync(pathId);
+
+            if (pathToDelete == null)
+            {
+                return false; // Path not found
+            }
+
+            // EF Core's cascading delete will handle associated PathItems and Resources
+            _context.LearningPaths.Remove(pathToDelete);
+            await _context.SaveChangesAsync();
+
+            return true; // Deletion successful
         }
 
         public async Task DeleteAllUserPathsAsync(string userAuth0Id)

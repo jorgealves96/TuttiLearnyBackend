@@ -1,12 +1,15 @@
 ﻿using LearningAppNetCoreApi.DTOs;
 using LearningAppNetCoreApi.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
+using System.Security.Claims;
 
 namespace LearningAppNetCoreApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class PathsController : ControllerBase
     {
         private readonly ILearningPathService _learningPathService;
@@ -17,24 +20,24 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [HttpGet]
-        // [Authorize]
         public async Task<IActionResult> GetUserPaths()
         {
-            var userAuth0Id = "temp-user-id-for-testing";
-            // var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            // if (string.IsNullOrEmpty(userAuth0Id))
-            // {
-            //     return Unauthorized();
-            // }
+            // Get the user's unique ID from the token's 'sub' (subject) claim
+            var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userAuth0Id))
+            {
+                return Unauthorized();
+            }
 
             var paths = await _learningPathService.GetUserPathsAsync(userAuth0Id);
             return Ok(paths);
         }
 
         [HttpGet("{id}")]
-        // [Authorize]
         public async Task<IActionResult> GetPathById(int id)
         {
+            // Note: For full security, you should also verify that the user owns this path.
+            // This can be done in the service layer.
             var path = await _learningPathService.GetPathByIdAsync(id);
             if (path == null)
             {
@@ -44,38 +47,31 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [HttpPost]
-        // [Authorize] // This endpoint is protected and requires authentication
         public async Task<IActionResult> CreateLearningPath([FromBody] CreateLearningPathDto createDto)
         {
-            // Temporarily hardcode a user ID for testing without authentication
-            var userAuth0Id = "temp-user-id-for-testing";
+            var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // Get the user's name and email from the token
+            var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+            var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
 
-            // The original code to get the user from the token:
-            // var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            // if (string.IsNullOrEmpty(userAuth0Id))
-            // {
-            //     return Unauthorized();
-            // }
+            if (string.IsNullOrEmpty(userAuth0Id))
+            {
+                return Unauthorized();
+            }
 
             try
             {
-                var newPath = await _learningPathService.CreateLearningPathAsync(createDto.Prompt, userAuth0Id);
-                return CreatedAtAction(nameof(GetPathById), new { id = newPath.Id }, newPath);
+                // Pass the user details to the service
+                var newPathDto = await _learningPathService.CreateLearningPathAsync(createDto.Prompt, userAuth0Id, userName, userEmail);
+                return CreatedAtAction(nameof(GetPathById), new { id = newPathDto.Id }, newPathDto);
             }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
-                // This catches the error for non-learning prompts
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (HttpRequestException ex)
-            {
-                // This catches errors from the API call itself
-                return StatusCode(503, new { message = "Service unavailable. Could not connect to the AI service.", details = ex.Message });
+                return StatusCode(500, new { message = "An error occurred.", details = ex.Message });
             }
         }
 
         [HttpPost("{pathId}/extend")]
-        // [Authorize]
         public async Task<IActionResult> ExtendLearningPath(int pathId)
         {
             try
@@ -113,19 +109,28 @@ namespace LearningAppNetCoreApi.Controllers
             return Ok(updatedResource);
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePath(int id)
+        {
+            var success = await _learningPathService.DeletePathAsync(id);
+            if (!success)
+            {
+                return NotFound(new { message = $"Path with ID {id} not found." });
+            }
+            return NoContent();
+        }
+
         [HttpDelete("all")]
-        // [Authorize]
         public async Task<IActionResult> DeleteAllUserPaths()
         {
-            var userAuth0Id = "temp-user-id-for-testing";
-            // var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            // if (string.IsNullOrEmpty(userAuth0Id))
-            // {
-            //     return Unauthorized();
-            // }
+            var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userAuth0Id))
+            {
+                return Unauthorized();
+            }
 
             await _learningPathService.DeleteAllUserPathsAsync(userAuth0Id);
-            return NoContent(); // 204 No Content is a standard response for a successful deletion
+            return NoContent();
         }
     }
 }
