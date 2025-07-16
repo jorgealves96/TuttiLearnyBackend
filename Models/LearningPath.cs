@@ -25,6 +25,7 @@ namespace LearningAppNetCoreApi.Models
         Business,
         Wellness,
         LifeSkills,
+        Gaming,
         Academic,
         Other
     }

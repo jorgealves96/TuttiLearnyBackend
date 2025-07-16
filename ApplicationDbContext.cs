@@ -13,5 +13,6 @@ namespace LearningAppNetCoreApi
         public DbSet<LearningPath> LearningPaths { get; set; }
         public DbSet<PathItem> PathItems { get; set; }
         public DbSet<Note> Notes { get; set; }
+        public DbSet<Resource> Resources { get; set; }
     }
 }

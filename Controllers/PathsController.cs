@@ -98,17 +98,34 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [HttpPatch("items/{itemId}/toggle-completion")]
-        // [Authorize] // You would uncomment this once authentication is set up
-        public async Task<IActionResult> ToggleCompletion(int itemId)
+        public async Task<IActionResult> TogglePathItemCompletion(int itemId)
         {
             var updatedItem = await _learningPathService.TogglePathItemCompletionAsync(itemId);
-
-            if (updatedItem == null)
-            {
-                return NotFound(new { message = $"Path item with ID {itemId} not found." });
-            }
-
+            if (updatedItem == null) return NotFound();
             return Ok(updatedItem);
+        }
+
+        [HttpPatch("resources/{resourceId}/toggle-completion")]
+        public async Task<IActionResult> ToggleResourceCompletion(int resourceId)
+        {
+            var updatedResource = await _learningPathService.ToggleResourceCompletionAsync(resourceId);
+            if (updatedResource == null) return NotFound();
+            return Ok(updatedResource);
+        }
+
+        [HttpDelete("all")]
+        // [Authorize]
+        public async Task<IActionResult> DeleteAllUserPaths()
+        {
+            var userAuth0Id = "temp-user-id-for-testing";
+            // var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // if (string.IsNullOrEmpty(userAuth0Id))
+            // {
+            //     return Unauthorized();
+            // }
+
+            await _learningPathService.DeleteAllUserPathsAsync(userAuth0Id);
+            return NoContent(); // 204 No Content is a standard response for a successful deletion
         }
     }
 }

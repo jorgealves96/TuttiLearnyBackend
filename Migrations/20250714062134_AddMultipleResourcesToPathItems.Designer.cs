@@ -3,6 +3,7 @@ using System;
 using LearningAppNetCoreApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250714062134_AddMultipleResourcesToPathItems")]
+    partial class AddMultipleResourcesToPathItems
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -124,6 +127,10 @@ namespace LearningAppNetCoreApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("title");
 
+                    b.Property<int>("Type")
+                        .HasColumnType("integer")
+                        .HasColumnName("type");
+
                     b.HasKey("Id")
                         .HasName("pk_path_items");
 
@@ -142,10 +149,6 @@ namespace LearningAppNetCoreApi.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_completed");
-
                     b.Property<int>("PathItemId")
                         .HasColumnType("integer")
                         .HasColumnName("path_item_id");
@@ -155,21 +158,18 @@ namespace LearningAppNetCoreApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("title");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer")
-                        .HasColumnName("type");
-
                     b.Property<string>("Url")
+                        .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("url");
 
                     b.HasKey("Id")
-                        .HasName("pk_resources");
+                        .HasName("pk_resource");
 
                     b.HasIndex("PathItemId")
-                        .HasDatabaseName("ix_resources_path_item_id");
+                        .HasDatabaseName("ix_resource_path_item_id");
 
-                    b.ToTable("resources", (string)null);
+                    b.ToTable("resource", (string)null);
                 });
 
             modelBuilder.Entity("LearningAppNetCoreApi.Models.User", b =>
@@ -249,7 +249,7 @@ namespace LearningAppNetCoreApi.Migrations
                         .HasForeignKey("PathItemId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_resources_path_items_path_item_id");
+                        .HasConstraintName("fk_resource_path_items_path_item_id");
 
                     b.Navigation("PathItem");
                 });

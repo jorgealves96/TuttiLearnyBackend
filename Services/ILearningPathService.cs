@@ -8,7 +8,9 @@ namespace LearningAppNetCoreApi.Services
         Task<LearningPathResponseDto> CreateLearningPathAsync(string prompt, string userAuth0Id);
         Task<List<PathItemResponseDto>> ExtendLearningPathAsync(int pathId);
         Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string userAuth0Id);
-        Task<LearningPathResponseDto> GetPathByIdAsync(int pathId);
+        Task<LearningPathResponseDto?> GetPathByIdAsync(int pathId);
         Task<PathItemResponseDto> TogglePathItemCompletionAsync(int itemId);
+        Task<ResourceDto> ToggleResourceCompletionAsync(int resourceId);
+        Task DeleteAllUserPathsAsync(string userAuth0Id);
     }
 }

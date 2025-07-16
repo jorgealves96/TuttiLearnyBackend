@@ -13,10 +13,18 @@
     {
         public int Id { get; set; }
         public string Title { get; set; }
-        public string Url { get; set; }
-        public string Type { get; set; }
         public int Order { get; set; }
         public bool IsCompleted { get; set; }
+        public List<ResourceDto> Resources { get; set; }
+    }
+
+    public class ResourceDto
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string Url { get; set; }
+        public string Type { get; set; }
+        public bool IsCompleted { get; set; } // isCompleted is now here
     }
 
     public class MyPathSummaryDto
