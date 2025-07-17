@@ -43,3 +43,6 @@ bld/
 
 # User-specific files
 *.DotSettings.user
+
+# Firebase service account key
+firebase-service-account.json

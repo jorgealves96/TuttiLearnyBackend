@@ -29,7 +29,7 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string userAuth0Id)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Auth0Id == userAuth0Id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
             if (user == null)
             {
                 return new List<MyPathSummaryDto>();
@@ -103,20 +103,7 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<LearningPathResponseDto> CreateLearningPathAsync(string prompt, string userAuth0Id, string? userName, string? userEmail)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Auth0Id == userAuth0Id);
-            if (user == null)
-            {
-                // Correctly create the user with data passed from the controller
-                user = new User
-                {
-                    Auth0Id = userAuth0Id,
-                    Email = userEmail ?? "Not provided",
-                    Name = userName ?? "Not provided"
-                };
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-            }
-
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id) ?? throw new InvalidOperationException("User profile does not exist.");
             var geminiResponse = await GetLearningPathFromGemini(prompt);
 
             if (!string.IsNullOrEmpty(geminiResponse.Error))
@@ -337,7 +324,7 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task DeleteAllUserPathsAsync(string userAuth0Id)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Auth0Id == userAuth0Id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
             if (user != null)
             {
                 // Find all paths for the user to ensure we only delete their data.
