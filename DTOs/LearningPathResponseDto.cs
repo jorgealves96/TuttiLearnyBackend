@@ -1,4 +1,6 @@
-﻿namespace LearningAppNetCoreApi.DTOs
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace LearningAppNetCoreApi.DTOs
 {
     public class LearningPathResponseDto
     {
@@ -34,5 +36,11 @@
         public string Description { get; set; }
         public string Category { get; set; } // New property for the category
         public double Progress { get; set; }
+    }
+
+    public class CreatePathRequestDto
+    {
+        [Required]
+        public string Prompt { get; set; }
     }
 }

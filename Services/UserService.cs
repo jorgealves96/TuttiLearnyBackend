@@ -15,28 +15,44 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<User> SyncUserAsync(ClaimsPrincipal userPrincipal)
         {
-            var auth0Id = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(auth0Id))
+            // The NameIdentifier claim holds the Firebase UID
+            var firebaseUid = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid))
             {
                 return null;
             }
 
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == auth0Id);
+            // Use the correct property to find the user
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
             if (user == null)
             {
-                var userName = userPrincipal.FindFirst(ClaimTypes.Name)?.Value;
+                var userName = userPrincipal.FindFirst("name")?.Value; // 'name' claim from Firebase
                 var userEmail = userPrincipal.FindFirst(ClaimTypes.Email)?.Value;
 
                 user = new User
                 {
-                    FirebaseUid = auth0Id,
+                    FirebaseUid = firebaseUid,
                     Email = userEmail ?? "Not provided",
                     Name = userName ?? "Not provided"
                 };
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
             }
+
+            return user;
+        }
+
+        public async Task<User> UpdateUserNameAsync(string firebaseUid, string newName)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null)
+            {
+                return null; // User not found
+            }
+
+            user.Name = newName;
+            await _context.SaveChangesAsync();
 
             return user;
         }

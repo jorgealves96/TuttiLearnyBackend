@@ -2,7 +2,7 @@
 using LearningAppNetCoreApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using System;
+using StopWord;
 using System.Text;
 using System.Web;
 
@@ -27,9 +27,9 @@ namespace LearningAppNetCoreApi.Services
             _env = env;
         }
 
-        public async Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string userAuth0Id)
+        public async Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
             if (user == null)
             {
                 return new List<MyPathSummaryDto>();
@@ -101,9 +101,128 @@ namespace LearningAppNetCoreApi.Services
             return responseDto;
         }
 
-        public async Task<LearningPathResponseDto> CreateLearningPathAsync(string prompt, string userAuth0Id, string? userName, string? userEmail)
+        public async Task<IEnumerable<MyPathSummaryDto>> FindSimilarPathsAsync(string prompt)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id) ?? throw new InvalidOperationException("User profile does not exist.");
+            // Use the StopWord library to remove common words in English.
+            // This is much more comprehensive than our manual list.
+            var cleanedPrompt = prompt.ToLower().RemoveStopWords("en");
+
+            var keywords = cleanedPrompt
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
+
+            if (!keywords.Any())
+            {
+                // If the prompt only contained stop words, return empty
+                return new List<MyPathSummaryDto>();
+            }
+
+            var query = _context.LearningPaths.AsQueryable();
+
+            // Build a query that requires ALL keywords to be present
+            foreach (var keyword in keywords)
+            {
+                query = query.Where(p => p.GeneratedFromPrompt.ToLower().Contains(keyword));
+            }
+
+            var similarPaths = await query
+                .Include(p => p.PathItems).ThenInclude(pi => pi.Resources)
+                .Take(5) // Limit to 5 suggestions
+                .ToListAsync();
+
+            // Map the found entities to the summary DTO
+            return similarPaths.Select(p =>
+            {
+                var allResources = p.PathItems.SelectMany(pi => pi.Resources).ToList();
+                var completedResources = allResources.Count(r => r.IsCompleted);
+                var totalResources = allResources.Count;
+
+                return new MyPathSummaryDto
+                {
+                    Id = p.Id,
+                    Title = p.Title,
+                    Description = p.Description,
+                    Category = p.Category.ToString(),
+                    Progress = totalResources > 0 ? (double)completedResources / totalResources : 0
+                };
+            });
+        }
+
+        public async Task<LearningPathResponseDto> AssignPathToUserAsync(int pathId, string userAuth0Id)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
+            if (user == null)
+            {
+                throw new InvalidOperationException("User not found.");
+            }
+
+            var originalPath = await _context.LearningPaths
+                .AsNoTracking() // Load the original path without tracking changes for efficiency
+                .Include(p => p.PathItems).ThenInclude(pi => pi.Resources)
+                .FirstOrDefaultAsync(p => p.Id == pathId);
+
+            if (originalPath == null) return null;
+
+            // Create a deep copy of the path for the new user
+            var newPath = new LearningPath
+            {
+                Title = originalPath.Title,
+                Description = originalPath.Description,
+                GeneratedFromPrompt = originalPath.GeneratedFromPrompt,
+                Category = originalPath.Category,
+                UserId = user.Id, // Assign to the current user
+                CreatedAt = DateTime.UtcNow,
+                PathItems = originalPath.PathItems.Select(pi => new PathItem
+                {
+                    Title = pi.Title,
+                    Order = pi.Order,
+                    IsCompleted = false, // Reset progress
+                    Resources = pi.Resources.Select(r => new Resource
+                    {
+                        Title = r.Title,
+                        Url = r.Url,
+                        Type = r.Type,
+                        IsCompleted = false // Reset progress
+                    }).ToList()
+                }).ToList()
+            };
+
+            _context.LearningPaths.Add(newPath);
+            await _context.SaveChangesAsync();
+
+            // Map the newly created entity to the detailed response DTO
+            return new LearningPathResponseDto
+            {
+                Id = newPath.Id,
+                Title = newPath.Title,
+                Description = newPath.Description,
+                CreatedAt = newPath.CreatedAt,
+                PathItems = newPath.PathItems.Select(pi => new PathItemResponseDto
+                {
+                    Id = pi.Id,
+                    Title = pi.Title,
+                    Order = pi.Order,
+                    IsCompleted = pi.IsCompleted,
+                    Resources = pi.Resources.Select(r => new ResourceDto
+                    {
+                        Id = r.Id,
+                        Title = r.Title,
+                        Url = r.Url,
+                        Type = r.Type.ToString(),
+                        IsCompleted = r.IsCompleted
+                    }).ToList()
+                }).ToList()
+            };
+        }
+
+        public async Task<LearningPathResponseDto> GenerateNewPathAsync(string prompt, string userAuth0Id)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
+            if (user == null)
+            {
+                throw new InvalidOperationException("User profile does not exist. Sync user first.");
+            }
+
             var geminiResponse = await GetLearningPathFromGemini(prompt);
 
             if (!string.IsNullOrEmpty(geminiResponse.Error))
@@ -151,7 +270,6 @@ namespace LearningAppNetCoreApi.Services
             _context.LearningPaths.Add(newLearningPath);
             await _context.SaveChangesAsync();
 
-            // Correctly map the newly created entity to the response DTO
             return new LearningPathResponseDto
             {
                 Id = newLearningPath.Id,
@@ -168,7 +286,9 @@ namespace LearningAppNetCoreApi.Services
                     {
                         Id = r.Id,
                         Title = r.Title,
-                        Url = r.Url
+                        Url = r.Url,
+                        Type = r.Type.ToString(),
+                        IsCompleted = r.IsCompleted
                     }).ToList()
                 }).ToList()
             };
@@ -322,9 +442,9 @@ namespace LearningAppNetCoreApi.Services
             return true; // Deletion successful
         }
 
-        public async Task DeleteAllUserPathsAsync(string userAuth0Id)
+        public async Task DeleteAllUserPathsAsync(string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
             if (user != null)
             {
                 // Find all paths for the user to ensure we only delete their data.

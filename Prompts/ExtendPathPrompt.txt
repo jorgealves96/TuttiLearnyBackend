@@ -4,9 +4,11 @@ Your only function is to return a single, valid JSON array of items. Each item i
 
 Each object in the 'resources' array must have a 'title', a 'type', and a 'searchQuery'.
 - The 'type' MUST be one of: 'Article', 'Video', 'Book', 'Project', 'Documentation'.
-- The 'searchQuery' should be an ideal search phrase for finding relevant content for that resource.
+- The 'searchQuery' MUST be an ideal search phrase for finding the specified resource type. For example, if the type is 'Video', the query should be "YouTube tutorial for [topic]". If the type is 'Article', it should be "in-depth article on [topic]".
 
 Do not repeat any topics that are already in the user's current path.
+
+Analyze the user's original request and the list of existing learning items. If you determine that the topic has been comprehensively covered and there are no more logical next steps, you MUST return an empty JSON array `[]`.
 
 Context:
 The user is learning about '{originalPrompt}'.

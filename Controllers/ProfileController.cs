@@ -20,16 +20,16 @@ namespace LearningAppNetCoreApi.Controllers
         [HttpGet("stats")]
         public async Task<IActionResult> GetUserStats()
         {
-            var userAuth0Id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userAuth0Id))
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid))
             {
                 return Unauthorized();
             }
 
-            var stats = await _profileService.GetUserStatsAsync(userAuth0Id);
+            var stats = await _profileService.GetUserStatsAsync(firebaseUid);
             if (stats == null)
             {
-                // This can happen if the user exists in Auth0 but not yet in our DB.
+                // This can happen if the user exists in Firebase but not yet in our DB.
                 // We can return default stats or an error.
                 return NotFound(new { message = "User profile not found." });
             }

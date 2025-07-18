@@ -12,25 +12,25 @@ namespace LearningAppNetCoreApi.Services
             _context = context;
         }
 
-        public async Task<ProfileStatsDto> GetUserStatsAsync(string userAuth0Id)
+        public async Task<ProfileStatsDto> GetUserStatsAsync(string firebaseUid)
         {
             var user = await _context.Users
                 .Include(u => u.LearningPaths)
                     .ThenInclude(lp => lp.PathItems)
                     .ThenInclude(pi => pi.Resources)
-                .FirstOrDefaultAsync(u => u.FirebaseUid == userAuth0Id);
+                .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
             if (user == null)
             {
-                return null; // Or throw a NotFoundException
+                return null;
             }
 
             var allPaths = user.LearningPaths;
             var allResources = allPaths.SelectMany(p => p.PathItems.SelectMany(pi => pi.Resources)).ToList();
 
-            var completedPaths = allPaths.Where(p =>
+            var completedPaths = allPaths.Count(p =>
                 p.PathItems.Any() && p.PathItems.SelectMany(pi => pi.Resources).All(r => r.IsCompleted)
-            ).Count();
+            );
 
             var stats = new ProfileStatsDto
             {
