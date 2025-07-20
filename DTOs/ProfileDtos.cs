@@ -1,4 +1,4 @@
-﻿namespace LearningAppNetCoreApi.DTOs
+﻿namespace LearningAppNetCoreApi.Dtos
 {
     public class ProfileStatsDto
     {

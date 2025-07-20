@@ -8,6 +8,6 @@
         public string Name { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<LearningPath> LearningPaths { get; set; }
+        public ICollection<UserPath> UserPaths { get; set; }
     }
 }

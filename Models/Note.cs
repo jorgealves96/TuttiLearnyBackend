@@ -8,6 +8,6 @@
 
         // Foreign Key relationship to the PathItem
         public int PathItemId { get; set; }
-        public PathItem PathItem { get; set; }
+        public UserPath PathItem { get; set; }
     }
 }

@@ -1,8 +1,6 @@
-﻿using System.Xml.XPath;
-
-namespace LearningAppNetCoreApi.Models
+﻿namespace LearningAppNetCoreApi.Models
 {
-    public class LearningPath
+    public class PathTemplate
     {
         public int Id { get; set; }
         public string Title { get; set; }
@@ -10,11 +8,8 @@ namespace LearningAppNetCoreApi.Models
         public string GeneratedFromPrompt { get; set; }
         public PathCategory Category { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        public int UserId { get; set; }
-        public User User { get; set; }
-
-        public ICollection<PathItem> PathItems { get; set; }
+        public ICollection<PathItemTemplate> PathItems { get; set; }
+        public ICollection<UserPath> UserPaths { get; set; } // A template can be taken by many users
     }
 
     public enum PathCategory

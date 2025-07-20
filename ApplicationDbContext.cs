@@ -9,10 +9,19 @@ namespace LearningAppNetCoreApi
         {
         }
 
+        // --- Core User and Template Tables ---
         public DbSet<User> Users { get; set; }
-        public DbSet<LearningPath> LearningPaths { get; set; }
-        public DbSet<PathItem> PathItems { get; set; }
-        public DbSet<Note> Notes { get; set; }
-        public DbSet<Resource> Resources { get; set; }
+        public DbSet<PathTemplate> PathTemplates { get; set; }
+        public DbSet<PathItemTemplate> PathItemTemplates { get; set; }
+        public DbSet<ResourceTemplate> ResourceTemplates { get; set; }
+
+        // --- User Progress Tracking Tables ---
+        public DbSet<UserPath> UserPaths { get; set; }
+        public DbSet<UserResourceProgress> UserResourceProgress { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }

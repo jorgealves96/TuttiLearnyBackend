@@ -1,4 +1,4 @@
-﻿using LearningAppNetCoreApi.DTOs;
+﻿using LearningAppNetCoreApi.Dtos;
 using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +24,12 @@ namespace LearningAppNetCoreApi.Controllers
         {
             // Get the user's unique ID from the token's 'sub' (subject) claim
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+#if DEBUG
+            if (firebaseUid == null)
+            {
+                firebaseUid = "test-user";
+            }
+#endif
             if (string.IsNullOrEmpty(firebaseUid))
             {
                 return Unauthorized();
@@ -34,16 +40,18 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [Authorize]
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetPathById(int id)
+        [HttpGet("{userPathId}")]
+        public async Task<IActionResult> GetPathById(int userPathId)
         {
-            // Note: For full security, you should also verify that the user owns this path.
-            // This can be done in the service layer.
-            var path = await _learningPathService.GetPathByIdAsync(id);
-            if (path == null)
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+#if DEBUG
+            if (firebaseUid == null)
             {
-                return NotFound();
+                firebaseUid = "test-user";
             }
+#endif
+            var path = await _learningPathService.GetPathByIdAsync(userPathId, firebaseUid);
+            if (path == null) return NotFound();
             return Ok(path);
         }
 
@@ -54,93 +62,85 @@ namespace LearningAppNetCoreApi.Controllers
             return Ok(suggestions);
         }
 
-        [Authorize]
+        //[Authorize]
         [HttpPost("generate")]
         public async Task<IActionResult> GenerateNewPath([FromBody] CreatePathRequestDto dto)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
 #if DEBUG
-            // If running in Debug mode and no token is provided, use a test user ID.
-            if (string.IsNullOrEmpty(firebaseUid))
+            if (firebaseUid == null)
             {
-                firebaseUid = "temp-firebase-uid-for-testing";
+                firebaseUid = "test-user";
             }
 #endif
-
             var newPath = await _learningPathService.GenerateNewPathAsync(dto.Prompt, firebaseUid);
-            return CreatedAtAction(nameof(GetPathById), new { id = newPath.Id }, newPath);
+            return CreatedAtAction(nameof(GetPathById), new { userPathId = newPath.UserPathId }, newPath);
         }
 
         [Authorize]
-        // New endpoint for assigning a copy of an existing path
-        [HttpPost("{id}/assign")]
-        public async Task<IActionResult> AssignPath(int id)
+        [HttpPost("templates/{templateId}/assign")]
+        public async Task<IActionResult> AssignPath(int templateId)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var assignedPath = await _learningPathService.AssignPathToUserAsync(templateId, firebaseUid);
+            if (assignedPath == null) return NotFound();
+            return CreatedAtAction(nameof(GetPathById), new { userPathId = assignedPath.UserPathId }, assignedPath);
+        }
 
+        //[Authorize]
+        [HttpPost("{userPathId}/extend")]
+        public async Task<IActionResult> ExtendLearningPath(int userPathId)
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 #if DEBUG
-            // If running in Debug mode and no token is provided, use a test user ID.
-            if (string.IsNullOrEmpty(firebaseUid))
+            if (firebaseUid == null)
             {
-                firebaseUid = "temp-firebase-uid-for-testing";
+                firebaseUid = "test-user";
             }
 #endif
-
-            var assignedPath = await _learningPathService.AssignPathToUserAsync(id, firebaseUid);
-            if (assignedPath == null) return NotFound();
-            return CreatedAtAction(nameof(GetPathById), new { id = assignedPath.Id }, assignedPath);
+            var newItems = await _learningPathService.ExtendLearningPathAsync(userPathId, firebaseUid);
+            if (newItems == null)
+            {
+                return NotFound(new { message = $"Learning path with ID {userPathId} not found for this user." });
+            }
+            return Ok(newItems);
         }
 
         [Authorize]
-        [HttpPost("{pathId}/extend")]
-        public async Task<IActionResult> ExtendLearningPath(int pathId)
+        [HttpPatch("items/{itemTemplateId}/toggle-completion")]
+        public async Task<IActionResult> TogglePathItemCompletion(int itemTemplateId)
         {
-            try
-            {
-                var newItems = await _learningPathService.ExtendLearningPathAsync(pathId);
-                if (newItems == null)
-                {
-                    return NotFound(new { message = $"Learning path with ID {pathId} not found." });
-                }
-                return Ok(newItems);
-            }
-            catch (HttpRequestException ex)
-            {
-                return StatusCode(503, new { message = "Service unavailable. Could not connect to the AI service.", details = ex.Message });
-            }
-            catch (JsonReaderException ex)
-            {
-                return StatusCode(502, new { message = "Bad gateway. The AI service returned an invalid response.", details = ex.Message });
-            }
-        }
-
-        [Authorize]
-        [HttpPatch("items/{itemId}/toggle-completion")]
-        public async Task<IActionResult> TogglePathItemCompletion(int itemId)
-        {
-            var updatedItem = await _learningPathService.TogglePathItemCompletionAsync(itemId);
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var updatedItem = await _learningPathService.TogglePathItemCompletionAsync(itemTemplateId, firebaseUid);
             if (updatedItem == null) return NotFound();
             return Ok(updatedItem);
         }
 
         [Authorize]
-        [HttpPatch("resources/{resourceId}/toggle-completion")]
-        public async Task<IActionResult> ToggleResourceCompletion(int resourceId)
+        [HttpPatch("resources/{resourceTemplateId}/toggle-completion")]
+        public async Task<IActionResult> ToggleResourceCompletion(int resourceTemplateId)
         {
-            var updatedResource = await _learningPathService.ToggleResourceCompletionAsync(resourceId);
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var updatedResource = await _learningPathService.ToggleResourceCompletionAsync(resourceTemplateId, firebaseUid);
             if (updatedResource == null) return NotFound();
             return Ok(updatedResource);
         }
 
         [Authorize]
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeletePath(int id)
+        [HttpDelete("{userPathId}")]
+        public async Task<IActionResult> DeletePath(int userPathId)
         {
-            var success = await _learningPathService.DeletePathAsync(id);
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+#if DEBUG
+            if (firebaseUid == null)
+            {
+                firebaseUid = "temp-test-user";
+            }
+#endif
+            var success = await _learningPathService.DeletePathAsync(userPathId, firebaseUid);
             if (!success)
             {
-                return NotFound(new { message = $"Path with ID {id} not found." });
+                return NotFound(new { message = $"Path with ID {userPathId} not found for this user." });
             }
             return NoContent();
         }

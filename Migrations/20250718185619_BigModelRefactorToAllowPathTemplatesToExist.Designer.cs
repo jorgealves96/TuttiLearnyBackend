@@ -3,6 +3,7 @@ using System;
 using LearningAppNetCoreApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250718185619_BigModelRefactorToAllowPathTemplatesToExist")]
+    partial class BigModelRefactorToAllowPathTemplatesToExist
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -162,34 +165,27 @@ namespace LearningAppNetCoreApi.Migrations
 
             modelBuilder.Entity("LearningAppNetCoreApi.Models.UserPath", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<int>("UserId")
                         .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnName("user_id");
 
                     b.Property<int>("PathTemplateId")
                         .HasColumnType("integer")
                         .HasColumnName("path_template_id");
 
+                    b.Property<int>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
+                    b.HasKey("UserId", "PathTemplateId")
                         .HasName("pk_user_paths");
 
                     b.HasIndex("PathTemplateId")
                         .HasDatabaseName("ix_user_paths_path_template_id");
-
-                    b.HasIndex("UserId", "PathTemplateId")
-                        .IsUnique()
-                        .HasDatabaseName("ix_user_paths_user_id_path_template_id");
 
                     b.ToTable("user_paths", (string)null);
                 });

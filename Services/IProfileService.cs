@@ -1,4 +1,4 @@
-﻿using LearningAppNetCoreApi.DTOs;
+﻿using LearningAppNetCoreApi.Dtos;
 
 namespace LearningAppNetCoreApi.Services
 {

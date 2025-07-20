@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace LearningAppNetCoreApi.DTOs
+namespace LearningAppNetCoreApi.Dtos
 {
     public class GeminiResponseDto
     {
@@ -20,7 +20,6 @@ namespace LearningAppNetCoreApi.DTOs
         public string Error { get; set; }
     }
 
-    // Represents a conceptual step from the AI
     public class GeminiPathItemDto
     {
         [JsonProperty("title")]
@@ -30,7 +29,6 @@ namespace LearningAppNetCoreApi.DTOs
         public List<GeminiResourceDto> Resources { get; set; }
     }
 
-    // Represents a single resource suggestion from the AI
     public class GeminiResourceDto
     {
         [JsonProperty("title")]
@@ -40,6 +38,6 @@ namespace LearningAppNetCoreApi.DTOs
         public string Type { get; set; }
 
         [JsonProperty("searchQuery")]
-        public string SearchQuery { get; set; }
+        public string? SearchQuery { get; set; }
     }
 }
