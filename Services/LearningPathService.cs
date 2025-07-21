@@ -160,6 +160,7 @@ namespace LearningAppNetCoreApi.Services
                 Category = p.Category.ToString()
             });
         }
+
         public async Task<LearningPathResponseDto> AssignPathToUserAsync(int pathTemplateId, string firebaseUid)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
@@ -562,7 +563,7 @@ namespace LearningAppNetCoreApi.Services
         private async Task<List<GeminiPathItemDto>> GetNextPathItemsFromGemini(PathTemplate existingPath)
         {
             var apiUrl = GetGeminiApiUrl();
-            var existingItems = string.Join(", ", existingPath.PathItems.Select(pi => $"\"{pi.Title}\""));
+            var existingResources = string.Join(", ", existingPath.PathItems.SelectMany(pi => pi.Resources).Select(r => $"\"{r.Title}\""));
 
             // Read the prompt template from the file
             var promptTemplatePath = Path.Combine(_env.ContentRootPath, "Prompts", "ExtendPathPrompt.txt");
@@ -572,7 +573,7 @@ namespace LearningAppNetCoreApi.Services
             var fullPrompt = promptTemplate
                 .Replace("{pathTitle}", existingPath.Title)
                 .Replace("{pathDescription}", existingPath.Description)
-                .Replace("{existingItems}", existingItems);
+                .Replace("{existingResources}", existingResources);
 
             var payload = new { contents = new[] { new { parts = new[] { new { text = fullPrompt } } } } };
             return await CallAndParseGeminiListAsync<GeminiPathItemDto>(apiUrl, payload);

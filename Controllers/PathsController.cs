@@ -67,21 +67,31 @@ namespace LearningAppNetCoreApi.Controllers
         public async Task<IActionResult> GenerateNewPath([FromBody] CreatePathRequestDto dto)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-#if DEBUG
-            if (firebaseUid == null)
+
+            try
             {
-                firebaseUid = "test-user";
+                var newPath = await _learningPathService.GenerateNewPathAsync(dto.Prompt, firebaseUid);
+                return CreatedAtAction(nameof(GetPathById), new { userPathId = newPath.UserPathId }, newPath);
             }
-#endif
-            var newPath = await _learningPathService.GenerateNewPathAsync(dto.Prompt, firebaseUid);
-            return CreatedAtAction(nameof(GetPathById), new { userPathId = newPath.UserPathId }, newPath);
+            catch (InvalidOperationException ex)
+            {
+                // If the AI returns an error (e.g., not a learning topic),
+                // return a 400 Bad Request with the specific message.
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Catch any other unexpected errors
+                return StatusCode(500, new { message = "An unexpected error occurred.", details = ex.Message });
+            }
         }
 
-        [Authorize]
         [HttpPost("templates/{templateId}/assign")]
         public async Task<IActionResult> AssignPath(int templateId)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid)) return Unauthorized();
+
             var assignedPath = await _learningPathService.AssignPathToUserAsync(templateId, firebaseUid);
             if (assignedPath == null) return NotFound();
             return CreatedAtAction(nameof(GetPathById), new { userPathId = assignedPath.UserPathId }, assignedPath);

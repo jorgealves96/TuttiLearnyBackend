@@ -16,7 +16,7 @@ Each object in the 'resources' array must have a 'title', a 'type', and a 'searc
 
 Context:
 The user is following a learning path titled '{pathTitle}' with the description: '{pathDescription}'.
-They have already been given the following learning items: [{existingItems}].
+They have already been given the following learning resources: [{existingResources}].
 
 User Request:
 'Continue this learning path.'

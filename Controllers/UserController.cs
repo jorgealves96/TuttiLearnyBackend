@@ -9,7 +9,6 @@ namespace LearningAppNetCoreApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -19,6 +18,7 @@ namespace LearningAppNetCoreApi.Controllers
             _userService = userService;
         }
 
+        [Authorize]
         [HttpPost("sync")]
         public async Task<IActionResult> SyncUser()
         {
@@ -32,6 +32,7 @@ namespace LearningAppNetCoreApi.Controllers
             return Ok(new { message = "User synchronized successfully." });
         }
 
+        [Authorize]
         [HttpPatch("name")]
         public async Task<IActionResult> UpdateName([FromBody] UpdateUserDto dto)
         {
@@ -48,6 +49,50 @@ namespace LearningAppNetCoreApi.Controllers
             }
 
             return Ok(updatedUser);
+        }
+
+        [Authorize]
+        [HttpDelete("me")]
+        public async Task<IActionResult> DeleteCurrentUser()
+        {
+            // Get the user's Firebase UID from the token
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid))
+            {
+                return Unauthorized("User UID not found in token.");
+            }
+
+            var success = await _userService.DeleteUserAsync(firebaseUid);
+
+            if (success)
+            {
+                return Ok(new { message = "User account deleted successfully." });
+            }
+
+            return StatusCode(500, "An error occurred while deleting the user account.");
+        }
+
+        //[Authorize]
+        [HttpDelete("{firebaseUid}")]
+        //[Authorize(Policy = "AdminOnly")] // This ensures only admins can use it
+        public async Task<IActionResult> DeleteUserByUid(string firebaseUid)
+        {
+            if (string.IsNullOrEmpty(firebaseUid))
+            {
+                return BadRequest("Firebase UID cannot be empty.");
+            }
+
+            var success = await _userService.DeleteUserAsync(firebaseUid);
+
+            if (success)
+            {
+                return Ok(new { message = $"User with UID '{firebaseUid}' deleted successfully." });
+            }
+
+            // The user might not have existed in the first place, but the goal is achieved.
+            // For an admin endpoint, returning success is often acceptable.
+            // You could also return NotFound() if success is false.
+            return Ok(new { message = $"User with UID '{firebaseUid}' was not found or already deleted." });
         }
     }
 }
