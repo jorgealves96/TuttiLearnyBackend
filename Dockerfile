@@ -2,7 +2,6 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-ENV HOST 0.0.0.0
 
 # --- Install EF Core tools in the build stage ---
 # This ensures dotnet-ef is available for migrations
@@ -30,11 +29,6 @@ RUN dotnet publish "LearningAppNetCoreApi.csproj" -c Release -o /app/publish /p:
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 
-ENV ASPNETCORE_hostBuilder__reloadConfigOnChange=false
-
-EXPOSE 8080
-
-CMD ["dotnet", "run", "--urls", "http://*:8080"]
 
 # Copy the published application from the publish stage
 COPY --from=publish /app/publish .
