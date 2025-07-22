@@ -26,5 +26,4 @@ RUN chmod +x startup.sh
 
 # The dotnet-ef tool is now available to the startup script in the final image
 # because it was published with the app.
-#
 CMD ["./startup.sh"]
