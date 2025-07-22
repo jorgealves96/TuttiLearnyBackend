@@ -23,9 +23,6 @@ steps:
       - '--region=europe-west1'
       - '--platform=managed'
       - '--allow-unauthenticated'
-      # --- Add these two lines to override the startup command ---
-      - '--command=sleep'
-      - '--args=3600'
 
 # Store the image in your Artifact Registry
 images:

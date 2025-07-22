@@ -21,9 +21,11 @@ RUN dotnet publish "LearningAppNetCoreApi.csproj" -c Release -o /app/publish /p:
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# --- Add this line ---
+ENV ASPNETCORE_URLS=http://*:8080
+# ----------------------
+
 COPY startup.sh .
 RUN chmod +x startup.sh
-
-# The dotnet-ef tool is now available to the startup script in the final image
-# because it was published with the app.
 CMD ["./startup.sh"]
