@@ -1,6 +1,0 @@
-@LearningAppNetCoreApi_HostAddress = http://localhost:5162
-
-GET {{LearningAppNetCoreApi_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
