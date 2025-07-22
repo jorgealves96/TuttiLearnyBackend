@@ -1,18 +1,32 @@
 steps:
   # 1. Authenticate Docker with Artifact Registry
+  # This step ensures Docker can push and pull images from your Artifact Registry.
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args: ['-c', 'gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet']
 
   # 2. Build the Docker container image
+  # Uses the Dockerfile in the current directory to build the image.
+  # The image is tagged with your project ID, repository, service name, and a short commit SHA.
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA', '.']
 
   # 3. Push the container image to your Artifact Registry
+  # Uploads the built image to your specified Artifact Registry.
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA']
 
   # 4. Deploy the new image to Cloud Run
+  # Deploys the newly pushed image to your Cloud Run service.
+  # --image: Specifies the image to deploy.
+  # --region: Sets the deployment region.
+  # --platform=managed: Indicates a fully managed Cloud Run service.
+  # --allow-unauthenticated: Allows public access to the service (remove for private services).
+  # --set-env-vars: IMPORTANT! Pass your database connection string here.
+  #                 Replace 'YOUR_DB_CONNECTION_STRING_HERE' with your actual connection string.
+  #                 For production, consider using Google Secret Manager for sensitive data.
+  # --add-cloudsql-instances: If you are using Google Cloud SQL, uncomment and configure this line.
+  #                           Format: PROJECT_ID:REGION:INSTANCE_NAME
   - name: 'google/cloud-sdk:latest'
     entrypoint: gcloud
     args:
@@ -23,6 +37,8 @@ steps:
       - '--region=europe-west1'
       - '--platform=managed'
       - '--allow-unauthenticated'
+      - '--set-env-vars=ConnectionStrings__DefaultConnection="Host=/cloudsql/tuttilearni-54f1f:europe-west1:tutti-learni-db;Database=tutti-learni-db;Username=postgres;Password=Tl&Dk/G6shlB0{*g"'
+      - '--add-cloudsql-instances=tuttilearni-54f1f:europe-west1:tutti-learni-db'
 
 # Store the image in your Artifact Registry
 images:

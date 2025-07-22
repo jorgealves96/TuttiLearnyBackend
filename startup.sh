@@ -5,5 +5,3 @@ dotnet ef database update
 
 # This command starts your actual application
 dotnet LearningAppNetCoreApi.dll
-
-#
