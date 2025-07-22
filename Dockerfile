@@ -30,11 +30,6 @@ WORKDIR /app
 # Copy the published application from the publish stage
 COPY --from=publish /app/publish .
 
-# Cloud Run expects your application to listen on the port specified by the PORT environment variable.
-# By default, Cloud Run sets PORT=8080. ASP.NET Core often picks this up automatically,
-# but explicitly setting ASPNETCORE_URLS can ensure it listens correctly.
-ENV ASPNETCORE_URLS=http://*:8080
-
 # Copy the startup script and make it executable
 COPY startup.sh .
 RUN chmod +x startup.sh
