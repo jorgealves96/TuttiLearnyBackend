@@ -1,19 +1,19 @@
 steps:
-  # --- NEW FIRST STEP: Configure Docker Credentials ---
+  # 1. Authenticate Docker with Artifact Registry
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
-    args: ['-c', 'gcloud auth configure-docker --quiet']
+    args: ['-c', 'gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet']
 
   # 2. Build the Docker container image
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA', '.']
 
-  # 3. Push the container image to Artifact Registry
+  # 3. Push the container image to your Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA']
 
-  # 4. Deploy the container image to Cloud Run
-  - name: 'gcr.io/google-cloud-sdk/gcloud-sdk'
+  # 4. Deploy the new image to Cloud Run
+  - name: 'google/cloud-sdk:latest' # Use the modern builder from Docker Hub
     entrypoint: gcloud
     args:
       - 'run'
@@ -24,11 +24,9 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
 
-# Store the image in Artifact Registry
+# Store the image in your Artifact Registry
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA'
 
-# --- Add this block at the end ---
-#
 options:
   logging: CLOUD_LOGGING_ONLY
