@@ -76,7 +76,7 @@ builder.Services.AddSwaggerGen();
 // --- Configure Port for Cloud Run ---
 // This ensures the app listens on the port provided by the environment.
 var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
-builder.WebHost.UseUrls($"http://*:{port}");
+builder.WebHost.UseUrls($"http://*:8080");
 
 var app = builder.Build();
 
