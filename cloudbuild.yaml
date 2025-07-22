@@ -13,7 +13,7 @@ steps:
     args: ['push', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA']
 
   # 4. Deploy the new image to Cloud Run
-  - name: 'google/cloud-sdk:latest' # Use the modern builder from Docker Hub
+  - name: 'google/cloud-sdk:latest'
     entrypoint: gcloud
     args:
       - 'run'
@@ -23,6 +23,9 @@ steps:
       - '--region=europe-west1'
       - '--platform=managed'
       - '--allow-unauthenticated'
+      # --- Add these two lines to override the startup command ---
+      - '--command=sleep'
+      - '--args=3600'
 
 # Store the image in your Artifact Registry
 images:
