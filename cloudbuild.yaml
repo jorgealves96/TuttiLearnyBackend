@@ -22,3 +22,7 @@ steps:
 # Store the image in Artifact Registry
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$SHORT_SHA'
+
+# --- Add this block at the end ---
+options:
+  logging: CLOUD_LOGGING_ONLY
