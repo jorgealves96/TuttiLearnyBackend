@@ -74,7 +74,7 @@ namespace LearningAppNetCoreApi.Controllers
 
         //[Authorize]
         [HttpDelete("{firebaseUid}")]
-        //[Authorize(Policy = "AdminOnly")] // This ensures only admins can use it
+        //[Authorize(Policy = "AdminOnly")] // This ensures only admins can use it, implement in prod.
         public async Task<IActionResult> DeleteUserByUid(string firebaseUid)
         {
             if (string.IsNullOrEmpty(firebaseUid))

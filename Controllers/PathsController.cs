@@ -62,7 +62,7 @@ namespace LearningAppNetCoreApi.Controllers
             return Ok(suggestions);
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpPost("generate")]
         public async Task<IActionResult> GenerateNewPath([FromBody] CreatePathRequestDto dto)
         {
@@ -97,7 +97,7 @@ namespace LearningAppNetCoreApi.Controllers
             return CreatedAtAction(nameof(GetPathById), new { userPathId = assignedPath.UserPathId }, assignedPath);
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpPost("{userPathId}/extend")]
         public async Task<IActionResult> ExtendLearningPath(int userPathId)
         {

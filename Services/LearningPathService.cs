@@ -2,7 +2,6 @@
 using LearningAppNetCoreApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using System;
 using System.Text;
 using System.Web;
 
@@ -556,7 +555,6 @@ namespace LearningAppNetCoreApi.Services
                 tools = new[] { new { google_search = new { } } }
             };
 
-            // We go back to the simpler CallGeminiApi that cleans the JSON from the 'text' field
             return await CallAndParseGeminiObjectAsync<GeminiResponseDto>(apiUrl, payload);
         }
 
@@ -586,7 +584,6 @@ namespace LearningAppNetCoreApi.Services
             return $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
         }
 
-        // Helper for API calls that expect a single JSON object
         private async Task<T> CallAndParseGeminiObjectAsync<T>(string apiUrl, object payload)
         {
             var httpClient = _httpClientFactory.CreateClient();
@@ -624,7 +621,6 @@ namespace LearningAppNetCoreApi.Services
             }
         }
 
-        // Helper for API calls that expect a JSON array (or a list of objects)
         private async Task<List<T>> CallAndParseGeminiListAsync<T>(string apiUrl, object payload)
         {
             var httpClient = _httpClientFactory.CreateClient();

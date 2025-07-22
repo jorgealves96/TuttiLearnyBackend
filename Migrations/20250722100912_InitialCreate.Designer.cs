@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250718185619_BigModelRefactorToAllowPathTemplatesToExist")]
-    partial class BigModelRefactorToAllowPathTemplatesToExist
+    [Migration("20250722100912_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -165,27 +165,34 @@ namespace LearningAppNetCoreApi.Migrations
 
             modelBuilder.Entity("LearningAppNetCoreApi.Models.UserPath", b =>
                 {
-                    b.Property<int>("UserId")
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
-                        .HasColumnName("user_id");
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("PathTemplateId")
                         .HasColumnType("integer")
                         .HasColumnName("path_template_id");
 
-                    b.Property<int>("Id")
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("started_at");
 
-                    b.HasKey("UserId", "PathTemplateId")
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
                         .HasName("pk_user_paths");
 
                     b.HasIndex("PathTemplateId")
                         .HasDatabaseName("ix_user_paths_path_template_id");
+
+                    b.HasIndex("UserId", "PathTemplateId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_user_paths_user_id_path_template_id");
 
                     b.ToTable("user_paths", (string)null);
                 });
