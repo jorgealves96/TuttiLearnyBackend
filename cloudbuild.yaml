@@ -39,7 +39,7 @@ steps:
       - '--allow-unauthenticated'
       - '--set-env-vars=ConnectionStrings__DefaultConnection="Host=/cloudsql/tuttilearni-54f1f:europe-west1:tutti-learni-db;Database=tutti-learni-db;Username=postgres;Password=Tl&Dk/G6shlB0{*g"'
       - '--add-cloudsql-instances=tuttilearni-54f1f:europe-west1:tutti-learni-db'
-      - '--startup-cpu-boost'
+      - '--cpu-boost'
 
 
 # Store the image in your Artifact Registry
