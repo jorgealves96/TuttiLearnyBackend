@@ -26,6 +26,6 @@ steps:
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$COMMIT_SHA'
 
-# This option tells Cloud Build where to send logs.
+# This option tells Cloud Build where to send logs..
 options:
   logging: CLOUD_LOGGING_ONLY
