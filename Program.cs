@@ -5,7 +5,7 @@ using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Google.Cloud.SecretManager.V1;
-using Npgsql; // Add this using statement
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 

@@ -31,3 +31,5 @@ images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$COMMIT_SHA'
 
 # Available substitutions from the trigger: $PROJECT_ID, $COMMIT_SHA, etc.
+options:
+  logging: CLOUD_LOGGING_ONLY
