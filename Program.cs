@@ -4,29 +4,21 @@ using LearningAppNetCoreApi;
 using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Google.Cloud.SecretManager.V1; // Add this using statement
+using Google.Cloud.SecretManager.V1;
+using Npgsql; // Add this using statement
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Initialize Firebase Admin SDK ---
-// This logic now handles both production and development environments.
 if (builder.Environment.IsProduction())
 {
-    // In production (Cloud Run), fetch the credentials from Secret Manager.
-    var projectId = "tuttilearni-54f1f"; // Your GCP Project ID
+    var projectId = "tuttilearni-54f1f";
     var secretId = "firebase-service-account";
-    var secretVersionId = "latest"; // Use the latest version of the secret
-
-    // Create the Secret Manager client. It will automatically use the
-    // service account credentials of the running Cloud Run instance.
+    var secretVersionId = "latest";
     var secretManager = await SecretManagerServiceClient.CreateAsync();
     var secretVersionName = new SecretVersionName(projectId, secretId, secretVersionId);
-
-    // Access the secret payload
     var result = await secretManager.AccessSecretVersionAsync(secretVersionName);
     var jsonCredentials = result.Payload.Data.ToStringUtf8();
-
-    // Initialize Firebase from the secret's JSON content
     FirebaseApp.Create(new AppOptions()
     {
         Credential = GoogleCredential.FromJson(jsonCredentials)
@@ -34,7 +26,6 @@ if (builder.Environment.IsProduction())
 }
 else
 {
-    // For local development, use the file from your project directory.
     var firebaseCredential = GoogleCredential.FromFile("firebase-service-account.json");
     FirebaseApp.Create(new AppOptions()
     {
@@ -42,7 +33,7 @@ else
     });
 }
 
-// --- Configure JWT Authentication ---
+// --- Configure Services ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -57,13 +48,32 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// --- Configure Database Context ---
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString)
-           .UseSnakeCaseNamingConvention());
+// --- Configure Database Context using the official NpgsqlConnectionStringBuilder ---
+if (builder.Environment.IsProduction())
+{
+    var connectionStringBuilder = new NpgsqlConnectionStringBuilder
+    {
+        Host = $"/cloudsql/{Environment.GetEnvironmentVariable("INSTANCE_CONNECTION_NAME")}",
+        Username = Environment.GetEnvironmentVariable("DB_USER"),
+        Password = Environment.GetEnvironmentVariable("DB_PASS"),
+        Database = Environment.GetEnvironmentVariable("DB_NAME"),
+        SslMode = SslMode.Disable, // Required for Cloud SQL Auth Proxy
+        Pooling = true
+    };
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(connectionStringBuilder.ConnectionString)
+               .UseSnakeCaseNamingConvention());
+}
+else
+{
+    // For local development, use your existing appsettings.json
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(connectionString)
+               .UseSnakeCaseNamingConvention());
+}
 
-// --- Add Services to the Container ---
+// --- Add Application Services ---
 builder.Services.AddScoped<ILearningPathService, LearningPathService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -73,13 +83,14 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// --- Configure Port for Cloud Run ---
-// This ensures the app listens on the port provided by the environment.
-var port = Environment.GetEnvironmentVariable("PORT") ?? "80";
-builder.WebHost.UseUrls($"http://*:{port}");
-
-//
 var app = builder.Build();
+
+// --- Apply Database Migrations on Startup ---
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate();
+}
 
 // --- Configure the HTTP Request Pipeline ---
 if (app.Environment.IsDevelopment())
@@ -89,8 +100,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseAuthentication(); // This must come before UseAuthorization
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok("Healthy"));
 
-app.Run();
+// --- Run the Application ---
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var url = $"http://0.0.0.0:{port}";
+app.Run(url);

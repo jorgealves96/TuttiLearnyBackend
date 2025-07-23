@@ -1,0 +1,12 @@
+# Exclude git history and local user settings
+.git
+.vs
+.vscode
+*.user
+
+# Exclude build artifacts
+**/bin
+**/obj
+
+# Exclude test projects from the final publish
+**/*[Tt]ests/
