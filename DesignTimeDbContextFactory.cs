@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿/*using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace LearningAppNetCoreApi;
-
+/*
 public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>
 {
     public ApplicationDbContext CreateDbContext(string[] args)
@@ -23,3 +23,4 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Applicatio
         return new ApplicationDbContext(builder.Options);
     }
 }
+*/

@@ -1,17 +1,13 @@
 steps:
   # 1. Build the container image
-  # This step uses the standard Docker builder to create your container image.
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$COMMIT_SHA', '.']
 
   # 2. Push the container image to Artifact Registry
-  # This pushes the newly built image to a central repository.
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$COMMIT_SHA']
 
   # 3. Deploy the new image to Cloud Run
-  # This step runs the gcloud deploy command with all the final, correct flags.
-  # Note that we use --image instead of --source because the image is already built.
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -23,13 +19,13 @@ steps:
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--add-cloudsql-instances=tuttilearni-54f1f:europe-west1:tutti-learni-db'
-      - '--update-secrets=DB_USER=db-user:latest,DB_PASS=db-pass:latest,DB_NAME=db-name:latest'
-      - '--set-env-vars=INSTANCE_CONNECTION_NAME=tuttilearni-54f1f:europe-west1:tutti-learni-db'
-      
+      - '--set-env-vars=INSTANCE_CONNECTION_NAME=tuttilearni-54f1f:europe-west1:tutti-learni-db,Gemini__Model=gemini-2.5-flash'
+      - '--update-secrets=DB_USER=db-user:latest,DB_PASS=db-pass:latest,DB_NAME=db-name:latest,GoogleSearch__ApiKey=youtube-and-search-api-key:latest,GoogleSearch__SearchEngineId=google-search-engine-id:latest,YouTube__ApiKey=youtube-and-search-api-key:latest,Gemini__ApiKey=gemini-api-key:latest'
+
 # This tells Cloud Build where to store the final images.
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/tutti-learni-repo/tutti-learni-api:$COMMIT_SHA'
 
-# Available substitutions from the trigger: $PROJECT_ID, $COMMIT_SHA, etc.
+# This option tells Cloud Build where to send logs.
 options:
   logging: CLOUD_LOGGING_ONLY
