@@ -77,6 +77,7 @@ else
 builder.Services.AddScoped<ILearningPathService, LearningPathService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();
@@ -106,6 +107,15 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok("Healthy"));
 
 // --- Run the Application ---
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-var url = $"http://0.0.0.0:{port}";
-app.Run(url);
+if (builder.Environment.IsProduction())
+{
+    // In production, listen on the port Cloud Run provides
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    var url = $"http://0.0.0.0:{port}";
+    app.Run(url);
+}
+else
+{
+    // In development, just run the app. It will use the URLs from launchSettings.json
+    app.Run();
+}

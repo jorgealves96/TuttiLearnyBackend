@@ -94,5 +94,17 @@ namespace LearningAppNetCoreApi.Controllers
             // You could also return NotFound() if success is false.
             return Ok(new { message = $"User with UID '{firebaseUid}' was not found or already deleted." });
         }
+
+        [HttpGet("me/subscription-status")]
+        public async Task<IActionResult> GetMySubscriptionStatus()
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
+
+            var status = await _userService.GetUserSubscriptionStatusAsync(firebaseUid);
+            if (status == null) return NotFound();
+
+            return Ok(status);
+        }
     }
 }

@@ -5,7 +5,7 @@ namespace LearningAppNetCoreApi.Dtos
     public class CreatePathRequestDto
     {
         [Required]
-        public string Prompt { get; set; }
+        public required string Prompt { get; set; }
     }
 
     // Represents a detailed path, combining template data with user progress

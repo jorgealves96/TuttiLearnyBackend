@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using Bogus;
 using FirebaseAdmin.Auth;
+using LearningAppNetCoreApi.Dtos;
+using LearningAppNetCoreApi.Constants;
 
 namespace LearningAppNetCoreApi.Services
 {
@@ -56,6 +58,57 @@ namespace LearningAppNetCoreApi.Services
             }
 
             return user;
+        }
+
+        public async Task<User?> GetUserByFirebaseUidAsync(string firebaseUid)
+        {
+            if (string.IsNullOrEmpty(firebaseUid))
+            {
+                return null;
+            }
+
+            return await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+        }
+
+        public async Task<UserSubscriptionStatusDto?> GetUserSubscriptionStatusAsync(string firebaseUid)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null) return null;
+
+            // Check if the monthly usage counters need to be reset
+            var now = DateTime.UtcNow;
+            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.LastUsageResetDate = now;
+                await _context.SaveChangesAsync();
+            }
+
+            var dto = new UserSubscriptionStatusDto
+            {
+                Tier = user.Tier,
+                PathsGeneratedThisMonth = user.PathsGeneratedThisMonth,
+                PathsExtendedThisMonth = user.PathsExtendedThisMonth
+            };
+
+            switch (user.Tier)
+            {
+                case SubscriptionTier.Free:
+                    dto.PathGenerationLimit = SubscriptionConstants.FreePathGenerationLimit;
+                    dto.PathExtensionLimit = SubscriptionConstants.FreePathExtensionLimit;
+                    break;
+                case SubscriptionTier.Pro:
+                    dto.PathGenerationLimit = SubscriptionConstants.ProPathGenerationLimit;
+                    dto.PathExtensionLimit = SubscriptionConstants.ProPathExtensionLimit;
+                    break;
+                case SubscriptionTier.Unlimited:
+                    dto.PathGenerationLimit = null; // null means unlimited
+                    dto.PathExtensionLimit = null;
+                    break;
+            }
+
+            return dto;
         }
 
         public async Task<User> UpdateUserNameAsync(string firebaseUid, string newName)

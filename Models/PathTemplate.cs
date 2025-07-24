@@ -8,7 +8,7 @@
         public string GeneratedFromPrompt { get; set; }
         public PathCategory Category { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public ICollection<PathItemTemplate> PathItems { get; set; }
+        public List<PathItemTemplate> PathItems { get; set; } = [];
         public ICollection<UserPath> UserPaths { get; set; } // A template can be taken by many users
     }
 

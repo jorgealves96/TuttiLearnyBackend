@@ -1,4 +1,5 @@
 ﻿using LearningAppNetCoreApi.Dtos;
+using LearningAppNetCoreApi.Exceptions;
 using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,12 +25,7 @@ namespace LearningAppNetCoreApi.Controllers
         {
             // Get the user's unique ID from the token's 'sub' (subject) claim
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-#if DEBUG
-            if (firebaseUid == null)
-            {
-                firebaseUid = "test-user";
-            }
-#endif
+
             if (string.IsNullOrEmpty(firebaseUid))
             {
                 return Unauthorized();
@@ -44,12 +40,7 @@ namespace LearningAppNetCoreApi.Controllers
         public async Task<IActionResult> GetPathById(int userPathId)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-#if DEBUG
-            if (firebaseUid == null)
-            {
-                firebaseUid = "test-user";
-            }
-#endif
+
             var path = await _learningPathService.GetPathByIdAsync(userPathId, firebaseUid);
             if (path == null) return NotFound();
             return Ok(path);
@@ -67,21 +58,24 @@ namespace LearningAppNetCoreApi.Controllers
         public async Task<IActionResult> GenerateNewPath([FromBody] CreatePathRequestDto dto)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
 
             try
             {
                 var newPath = await _learningPathService.GenerateNewPathAsync(dto.Prompt, firebaseUid);
                 return CreatedAtAction(nameof(GetPathById), new { userPathId = newPath.UserPathId }, newPath);
             }
+            catch (UsageLimitExceededException ex)
+            {
+                // Return 429 Too Many Requests for usage limit errors
+                return StatusCode(429, new { message = ex.Message });
+            }
             catch (InvalidOperationException ex)
             {
-                // If the AI returns an error (e.g., not a learning topic),
-                // return a 400 Bad Request with the specific message.
                 return BadRequest(new { message = ex.Message });
             }
             catch (Exception ex)
             {
-                // Catch any other unexpected errors
                 return StatusCode(500, new { message = "An unexpected error occurred.", details = ex.Message });
             }
         }
@@ -102,18 +96,26 @@ namespace LearningAppNetCoreApi.Controllers
         public async Task<IActionResult> ExtendLearningPath(int userPathId)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-#if DEBUG
-            if (firebaseUid == null)
+            if (firebaseUid == null) return Unauthorized();
+
+            try
             {
-                firebaseUid = "test-user";
+                var newItems = await _learningPathService.ExtendLearningPathAsync(userPathId, firebaseUid);
+                return Ok(newItems);
             }
-#endif
-            var newItems = await _learningPathService.ExtendLearningPathAsync(userPathId, firebaseUid);
-            if (newItems == null)
+            catch (UsageLimitExceededException ex)
             {
-                return NotFound(new { message = $"Learning path with ID {userPathId} not found for this user." });
+                return StatusCode(429, new { message = ex.Message });
             }
-            return Ok(newItems);
+            catch (InvalidOperationException ex)
+            {
+                // Return 404 Not Found if the user or path doesn't exist
+                return NotFound(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "An unexpected error occurred." });
+            }
         }
 
         [Authorize]
@@ -141,12 +143,7 @@ namespace LearningAppNetCoreApi.Controllers
         public async Task<IActionResult> DeletePath(int userPathId)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-#if DEBUG
-            if (firebaseUid == null)
-            {
-                firebaseUid = "temp-test-user";
-            }
-#endif
+
             var success = await _learningPathService.DeletePathAsync(userPathId, firebaseUid);
             if (!success)
             {

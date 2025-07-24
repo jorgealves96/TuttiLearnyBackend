@@ -1,4 +1,6 @@
-﻿using LearningAppNetCoreApi.Dtos;
+﻿using LearningAppNetCoreApi.Constants;
+using LearningAppNetCoreApi.Dtos;
+using LearningAppNetCoreApi.Exceptions;
 using LearningAppNetCoreApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -173,6 +175,8 @@ namespace LearningAppNetCoreApi.Services
                 return await GetPathByIdAsync(existingUserPath.Id, firebaseUid);
             }
 
+            user.TotalPathsStarted++;
+
             var newUserPath = new UserPath
             {
                 UserId = user.Id,
@@ -216,8 +220,29 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<LearningPathResponseDto> GenerateNewPathAsync(string prompt, string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
-            if (user == null) throw new InvalidOperationException("User not found.");
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
+
+            // --- 1. Check if the monthly usage counters need to be reset ---
+            var now = DateTime.UtcNow;
+            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.LastUsageResetDate = now;
+            }
+
+            // --- 2. Check if the user is within their limits based on tier ---
+            if (user.Tier == SubscriptionTier.Free && user.PathsGeneratedThisMonth >= SubscriptionConstants.FreePathGenerationLimit)
+            {
+                // Throw the new custom exception
+                throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
+            }
+
+            if (user.Tier == SubscriptionTier.Pro && user.PathsGeneratedThisMonth >= SubscriptionConstants.ProPathGenerationLimit)
+            {
+                // Throw the new custom exception
+                throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
+            }
 
             var geminiResponse = await GetLearningPathFromGemini(prompt);
 
@@ -280,112 +305,60 @@ namespace LearningAppNetCoreApi.Services
             }
 
             _context.PathTemplates.Add(newPathTemplate);
-            await _context.SaveChangesAsync();
+
+            // --- 3. Increment the user's usage counter upon success ---
+            user.PathsGeneratedThisMonth++;
+
+            await _context.SaveChangesAsync(); // This saves both the new path and the user's updated usage count
 
             return await AssignPathToUserAsync(newPathTemplate.Id, firebaseUid);
         }
 
         public async Task<List<PathItemResponseDto>> ExtendLearningPathAsync(int userPathId, string firebaseUid)
         {
-            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
-            if (user == null) return null;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
+
+            var now = DateTime.UtcNow;
+            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.LastUsageResetDate = now;
+            }
+
+            if (user.Tier == SubscriptionTier.Free && user.PathsExtendedThisMonth >= SubscriptionConstants.FreePathExtensionLimit)
+            {
+                throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Please upgrade to continue.");
+            }
+
+            if (user.Tier == SubscriptionTier.Pro && user.PathsExtendedThisMonth >= SubscriptionConstants.ProPathExtensionLimit)
+            {
+                throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Please upgrade to continue.");
+            }
 
             var userPath = await _context.UserPaths
                 .Include(up => up.PathTemplate)
                     .ThenInclude(pt => pt.PathItems)
                     .ThenInclude(pit => pit.Resources)
-                .FirstOrDefaultAsync(up => up.Id == userPathId && up.UserId == user.Id);
-
-            if (userPath == null) return null;
+                .FirstOrDefaultAsync(up => up.Id == userPathId && up.UserId == user.Id)
+                ?? throw new InvalidOperationException("Learning path not found for this user.");
 
             var newItemsFromGemini = await GetNextPathItemsFromGemini(userPath.PathTemplate);
             if (newItemsFromGemini == null || !newItemsFromGemini.Any()) return new List<PathItemResponseDto>();
 
-            // 1. Create a new PathTemplate by copying the original
-            var forkedPathTemplate = new PathTemplate
-            {
-                Title = userPath.PathTemplate.Title,
-                Description = userPath.PathTemplate.Description,
-                GeneratedFromPrompt = userPath.PathTemplate.GeneratedFromPrompt,
-                Category = userPath.PathTemplate.Category,
-                CreatedAt = DateTime.UtcNow,
-                // Create a deep copy of the existing items and resources
-                PathItems = userPath.PathTemplate.PathItems.Select(pi => new PathItemTemplate
-                {
-                    Title = pi.Title,
-                    Order = pi.Order,
-                    Resources = pi.Resources.Select(r => new ResourceTemplate
-                    {
-                        Title = r.Title,
-                        Url = r.Url,
-                        Type = r.Type
-                    }).ToList()
-                }).ToList()
-            };
+            var forkedPathTemplate = ForkPathTemplate(userPath.PathTemplate);
 
-            // 2. Add the new items from the AI to the forked template
-            var highestOrder = forkedPathTemplate.PathItems.Any() ? forkedPathTemplate.PathItems.Max(pi => pi.Order) : 0;
-            var newPathItemTemplates = new List<PathItemTemplate>();
+            var newPathItemTemplates = await CreateNewPathItemTemplatesAsync(newItemsFromGemini, forkedPathTemplate);
+            forkedPathTemplate.PathItems.AddRange(newPathItemTemplates);
 
-            foreach (var itemDto in newItemsFromGemini)
-            {
-                var pathItemTemplate = new PathItemTemplate
-                {
-                    Title = itemDto.Title,
-                    Order = highestOrder + newPathItemTemplates.Count + 1,
-                    Resources = new List<ResourceTemplate>()
-                };
+            userPath.PathTemplate = forkedPathTemplate;
 
-                foreach (var resourceDto in itemDto.Resources ?? new List<GeminiResourceDto>())
-                {
-                    var resourceType = Enum.Parse<ItemType>(resourceDto.Type, true);
-                    string? resourceUrl = (resourceType == ItemType.Video)
-                        ? await SearchForYouTubeVideoAsync(resourceDto.SearchQuery)
-                        : await SearchForUrlAsync(resourceDto.SearchQuery);
+            user.PathsExtendedThisMonth++;
 
-                    if (!string.IsNullOrEmpty(resourceUrl))
-                    {
-                        pathItemTemplate.Resources.Add(new ResourceTemplate
-                        {
-                            Title = resourceDto.Title,
-                            Type = resourceType,
-                            Url = resourceUrl
-                        });
-                    }
-                }
-                newPathItemTemplates.Add(pathItemTemplate);
-            }
+            await _context.SaveChangesAsync(); // This will now correctly save the new PathTemplate
+                                               // and then update userPath to reference its *actual* generated ID.
 
-            // Add the newly generated items to the collection
-            foreach (var item in newPathItemTemplates)
-            {
-                forkedPathTemplate.PathItems.Add(item);
-            }
-
-            // 3. Save the new forked template to the database
-            _context.PathTemplates.Add(forkedPathTemplate);
-            await _context.SaveChangesAsync();
-
-            // 4. Update the user's UserPath to point to the new forked template
-            userPath.PathTemplateId = forkedPathTemplate.Id;
-            await _context.SaveChangesAsync();
-
-            // 5. Map and return only the newly added items to the frontend
-            return newPathItemTemplates.Select(pi => new PathItemResponseDto
-            {
-                Id = pi.Id,
-                Title = pi.Title,
-                Order = pi.Order,
-                IsCompleted = false,
-                Resources = pi.Resources.Select(r => new ResourceResponseDto
-                {
-                    Id = r.Id,
-                    Title = r.Title,
-                    Url = r.Url,
-                    Type = r.Type.ToString(),
-                    IsCompleted = false
-                }).ToList()
-            }).ToList();
+            return MapPathItemsToDto(newPathItemTemplates);
         }
 
         public async Task<PathItemResponseDto> TogglePathItemCompletionAsync(int pathItemTemplateId, string firebaseUid)
@@ -723,6 +696,89 @@ namespace LearningAppNetCoreApi.Services
                 Console.WriteLine($"Error during YouTube search: {ex.Message}");
                 return null;
             }
+        }
+
+        private PathTemplate ForkPathTemplate(PathTemplate original)
+        {
+            return new PathTemplate
+            {
+                Title = original.Title,
+                Description = original.Description,
+                GeneratedFromPrompt = original.GeneratedFromPrompt,
+                Category = original.Category,
+                CreatedAt = DateTime.UtcNow,
+                PathItems = original.PathItems.Select(pi => new PathItemTemplate
+                {
+                    Title = pi.Title,
+                    Order = pi.Order,
+                    Resources = pi.Resources.Select(r => new ResourceTemplate
+                    {
+                        Title = r.Title,
+                        Url = r.Url,
+                        Type = r.Type
+                    }).ToList()
+                }).ToList()
+            };
+        }
+
+        private async Task<List<PathItemTemplate>> CreateNewPathItemTemplatesAsync(List<GeminiPathItemDto> newItemsFromGemini, PathTemplate forkedPathTemplate)
+        {
+            var highestOrder = forkedPathTemplate.PathItems.Any()
+                ? forkedPathTemplate.PathItems.Max(pi => pi.Order)
+                : 0;
+
+            var newPathItemTemplates = new List<PathItemTemplate>();
+
+            foreach (var itemDto in newItemsFromGemini)
+            {
+                var pathItemTemplate = new PathItemTemplate
+                {
+                    Title = itemDto.Title,
+                    Order = highestOrder + newPathItemTemplates.Count + 1,
+                    Resources = new List<ResourceTemplate>()
+                };
+
+                foreach (var resourceDto in itemDto.Resources ?? new List<GeminiResourceDto>())
+                {
+                    if (string.IsNullOrEmpty(resourceDto.SearchQuery)) continue;
+
+                    var resourceType = Enum.Parse<ItemType>(resourceDto.Type, true);
+                    string? resourceUrl = (resourceType == ItemType.Video)
+                        ? await SearchForYouTubeVideoAsync(resourceDto.SearchQuery)
+                        : await SearchForUrlAsync(resourceDto.SearchQuery);
+
+                    if (!string.IsNullOrEmpty(resourceUrl))
+                    {
+                        pathItemTemplate.Resources.Add(new ResourceTemplate
+                        {
+                            Title = resourceDto.Title,
+                            Type = resourceType,
+                            Url = resourceUrl
+                        });
+                    }
+                }
+                newPathItemTemplates.Add(pathItemTemplate);
+            }
+            return newPathItemTemplates;
+        }
+
+        private List<PathItemResponseDto> MapPathItemsToDto(List<PathItemTemplate> pathItems)
+        {
+            return pathItems.Select(pi => new PathItemResponseDto
+            {
+                Id = pi.Id,
+                Title = pi.Title,
+                Order = pi.Order,
+                IsCompleted = false, // Newly added items are always incomplete
+                Resources = pi.Resources.Select(r => new ResourceResponseDto
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Url = r.Url,
+                    Type = r.Type.ToString(),
+                    IsCompleted = false
+                }).ToList()
+            }).ToList();
         }
 
         #endregion

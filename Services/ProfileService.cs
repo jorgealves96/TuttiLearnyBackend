@@ -64,7 +64,8 @@ namespace LearningAppNetCoreApi.Services
             // 4. Assemble the final statistics DTO
             var stats = new ProfileStatsDto
             {
-                PathsStarted = userPaths.Count,
+                PathsStarted = user.TotalPathsStarted,
+                PathsInProgress = userPaths.Count,
                 PathsCompleted = completedPathsCount,
                 ItemsCompleted = completedResourceIds.Count, // The total count of completed resources
                 JoinedDate = user.CreatedAt
