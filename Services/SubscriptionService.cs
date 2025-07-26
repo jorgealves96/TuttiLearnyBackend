@@ -14,6 +14,14 @@ namespace LearningAppNetCoreApi.Services
         public async Task<User> UpdateUserSubscriptionAsync(int userId, SubscriptionTier newTier, bool isYearly)
         {
             var user = await _context.Users.FindAsync(userId) ?? throw new Exception("User not found.");
+
+            if (newTier > user.Tier)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.LastUsageResetDate = DateTime.UtcNow;
+            }
+
             user.Tier = newTier;
 
             if (newTier == SubscriptionTier.Free)

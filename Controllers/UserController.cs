@@ -1,5 +1,4 @@
 ﻿using LearningAppNetCoreApi.Dtos;
-using LearningAppNetCoreApi.Models;
 using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

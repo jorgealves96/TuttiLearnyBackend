@@ -89,8 +89,15 @@ namespace LearningAppNetCoreApi.Services
             {
                 Tier = user.Tier,
                 PathsGeneratedThisMonth = user.PathsGeneratedThisMonth,
-                PathsExtendedThisMonth = user.PathsExtendedThisMonth
+                PathsExtendedThisMonth = user.PathsExtendedThisMonth,
+                SubscriptionExpiryDate = user.SubscriptionExpiryDate
             };
+
+            if (user.SubscriptionExpiryDate.HasValue)
+            {
+                TimeSpan remainingTime = user.SubscriptionExpiryDate.Value - DateTime.UtcNow;
+                dto.DaysLeftInSubscription = (int)Math.Ceiling(remainingTime.TotalDays);
+            }
 
             switch (user.Tier)
             {
