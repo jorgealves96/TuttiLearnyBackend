@@ -10,6 +10,7 @@
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public List<PathItemTemplate> PathItems { get; set; } = [];
         public ICollection<UserPath> UserPaths { get; set; } // A template can be taken by many users
+        public ICollection<PathTemplateRating> Ratings { get; set; }
     }
 
     public enum PathCategory

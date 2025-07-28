@@ -27,6 +27,7 @@ namespace LearningAppNetCoreApi.Services
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
+            // Create user in database
             if (user == null)
             {
                 var userName = userPrincipal.FindFirst("name")?.Value;
@@ -37,7 +38,6 @@ namespace LearningAppNetCoreApi.Services
                     var faker = new Faker();
                     userName = $"{Capitalize(faker.Hacker.Adjective())} {Capitalize(faker.Lorem.Word())}";
 
-                    // This is the missing step
                     var args = new UserRecordArgs
                     {
                         Uid = firebaseUid,

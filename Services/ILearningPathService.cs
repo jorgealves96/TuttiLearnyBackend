@@ -1,5 +1,4 @@
 ﻿using LearningAppNetCoreApi.Dtos;
-using LearningAppNetCoreApi.Models;
 
 namespace LearningAppNetCoreApi.Services
 {
@@ -13,6 +12,7 @@ namespace LearningAppNetCoreApi.Services
         Task<LearningPathResponseDto> GetPathByIdAsync(int userPathId, string firebaseUid);
         Task<PathItemResponseDto> TogglePathItemCompletionAsync(int pathItemTemplateId, string firebaseUid);
         Task<ResourceResponseDto> ToggleResourceCompletionAsync(int resourceTemplateId, string firebaseUid);
+        Task<bool> RatePathAsync(int pathTemplateId, string firebaseUid, int rating);
         Task<bool> DeletePathAsync(int userPathId, string firebaseUid);
         Task DeleteAllUserPathsAsync(string firebaseUid);
     }

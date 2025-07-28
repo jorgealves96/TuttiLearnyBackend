@@ -3,7 +3,6 @@ using LearningAppNetCoreApi.Exceptions;
 using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using System.Security.Claims;
 
 namespace LearningAppNetCoreApi.Controllers
@@ -116,6 +115,23 @@ namespace LearningAppNetCoreApi.Controllers
             {
                 return StatusCode(500, new { message = "An unexpected error occurred." });
             }
+        }
+
+        [Authorize]
+        [HttpPost("{pathTemplateId}/rate")]
+        public async Task<IActionResult> RatePath(int pathTemplateId, [FromBody] SubmitRatingDto dto)
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
+
+            var success = await _learningPathService.RatePathAsync(pathTemplateId, firebaseUid, dto.Rating);
+
+            if (!success)
+            {
+                return NotFound(new { message = "Path template not found." });
+            }
+
+            return Ok(new { message = "Rating submitted successfully." });
         }
 
         [Authorize]

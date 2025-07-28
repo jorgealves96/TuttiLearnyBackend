@@ -11,11 +11,13 @@ namespace LearningAppNetCoreApi.Dtos
     // Represents a detailed path, combining template data with user progress
     public class LearningPathResponseDto
     {
-        public int UserPathId { get; set; } // The ID of the user's specific instance of the path
+        public int UserPathId { get; set; }
+        public int PathTemplateId { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<PathItemResponseDto> PathItems { get; set; }
+        public bool HasBeenRated { get; set; }
     }
 
     public class PathItemResponseDto

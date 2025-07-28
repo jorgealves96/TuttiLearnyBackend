@@ -18,6 +18,7 @@ namespace LearningAppNetCoreApi
         // --- User Progress Tracking Tables ---
         public DbSet<UserPath> UserPaths { get; set; }
         public DbSet<UserResourceProgress> UserResourceProgress { get; set; }
+        public DbSet<PathTemplateRating> PathTemplateRatings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

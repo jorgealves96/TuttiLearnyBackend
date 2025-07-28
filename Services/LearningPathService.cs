@@ -80,9 +80,14 @@ namespace LearningAppNetCoreApi.Services
                 .Where(urp => urp.UserId == user.Id)
                 .ToDictionaryAsync(urp => urp.ResourceTemplateId);
 
+            var hasRated = await _context.PathTemplateRatings
+                .AnyAsync(r => r.PathTemplateId == userPath.PathTemplateId && r.FirebaseUid == firebaseUid);
+
             return new LearningPathResponseDto
             {
                 UserPathId = userPath.Id,
+                PathTemplateId = userPath.PathTemplateId,
+                HasBeenRated = hasRated,
                 Title = userPath.PathTemplate.Title,
                 Description = userPath.PathTemplate.Description,
                 CreatedAt = userPath.StartedAt,
@@ -453,6 +458,38 @@ namespace LearningAppNetCoreApi.Services
                 Type = resourceTemplate.Type.ToString(),
                 IsCompleted = progress.IsCompleted
             };
+        }
+
+        public async Task<bool> RatePathAsync(int pathTemplateId, string firebaseUid, int rating)
+        {
+            // Check if the template exists first
+            var pathTemplateExists = await _context.PathTemplates.AnyAsync(pt => pt.Id == pathTemplateId);
+            if (!pathTemplateExists)
+            {
+                return false; // Signal to the controller that the path was not found
+            }
+
+            var existingRating = await _context.PathTemplateRatings
+                .FirstOrDefaultAsync(r => r.PathTemplateId == pathTemplateId && r.FirebaseUid == firebaseUid);
+
+            if (existingRating != null)
+            {
+                existingRating.Rating = rating;
+                existingRating.RatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                var newRating = new PathTemplateRating
+                {
+                    PathTemplateId = pathTemplateId,
+                    FirebaseUid = firebaseUid,
+                    Rating = rating
+                };
+                _context.PathTemplateRatings.Add(newRating);
+            }
+
+            await _context.SaveChangesAsync();
+            return true; // Signal that the operation was successful
         }
 
         public async Task<bool> DeletePathAsync(int userPathId, string firebaseUid)
