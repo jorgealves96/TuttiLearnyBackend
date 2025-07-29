@@ -71,29 +71,6 @@ namespace LearningAppNetCoreApi.Controllers
             return StatusCode(500, "An error occurred while deleting the user account.");
         }
 
-        //[Authorize]
-        [HttpDelete("{firebaseUid}")]
-        //[Authorize(Policy = "AdminOnly")] // This ensures only admins can use it, implement in prod.
-        public async Task<IActionResult> DeleteUserByUid(string firebaseUid)
-        {
-            if (string.IsNullOrEmpty(firebaseUid))
-            {
-                return BadRequest("Firebase UID cannot be empty.");
-            }
-
-            var success = await _userService.DeleteUserAsync(firebaseUid);
-
-            if (success)
-            {
-                return Ok(new { message = $"User with UID '{firebaseUid}' deleted successfully." });
-            }
-
-            // The user might not have existed in the first place, but the goal is achieved.
-            // For an admin endpoint, returning success is often acceptable.
-            // You could also return NotFound() if success is false.
-            return Ok(new { message = $"User with UID '{firebaseUid}' was not found or already deleted." });
-        }
-
         [HttpGet("me/subscription-status")]
         public async Task<IActionResult> GetMySubscriptionStatus()
         {

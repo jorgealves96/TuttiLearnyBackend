@@ -167,19 +167,5 @@ namespace LearningAppNetCoreApi.Controllers
             }
             return NoContent();
         }
-
-        [Authorize]
-        [HttpDelete("all")]
-        public async Task<IActionResult> DeleteAllUserPaths()
-        {
-            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(firebaseUid))
-            {
-                return Unauthorized();
-            }
-
-            await _learningPathService.DeleteAllUserPathsAsync(firebaseUid);
-            return NoContent();
-        }
     }
 }
