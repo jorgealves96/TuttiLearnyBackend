@@ -169,8 +169,7 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<LearningPathResponseDto> AssignPathToUserAsync(int pathTemplateId, string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
-            if (user == null) throw new InvalidOperationException("User not found.");
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
 
             var existingUserPath = await _context.UserPaths
                 .FirstOrDefaultAsync(up => up.UserId == user.Id && up.PathTemplateId == pathTemplateId);
@@ -719,14 +718,31 @@ namespace LearningAppNetCoreApi.Services
             try
             {
                 var response = await httpClient.GetAsync(apiUrl);
-                if (!response.IsSuccessStatusCode) return null;
-
                 var jsonResponse = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    // --- Throw exception on API failure ---
+                    // Check if the error is due to a quota limit
+                    if (jsonResponse.Contains("quotaExceeded"))
+                    {
+                        throw new ApiQuotaExceededException("YouTube API quota exceeded. Cannot generate path.");
+                    }
+                    // For other API errors
+                    throw new HttpRequestException($"YouTube API returned an error: {response.ReasonPhrase}");
+                }
+
                 var youtubeResult = JsonConvert.DeserializeObject<YouTubeSearchResponseDto>(jsonResponse);
 
                 string? videoId = youtubeResult?.Items?.FirstOrDefault()?.Id?.VideoId;
 
-                return string.IsNullOrEmpty(videoId) ? null : $"https://www.youtube.com/watch?v={videoId}";
+                if (string.IsNullOrEmpty(videoId))
+                {
+                    // Throw an exception if no video is found for the query
+                    throw new Exception($"No YouTube video found for query: '{query}'");
+                }
+
+                return $"https://www.youtube.com/watch?v={videoId}";
             }
             catch (Exception ex)
             {

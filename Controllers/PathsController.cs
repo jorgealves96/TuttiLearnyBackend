@@ -79,6 +79,7 @@ namespace LearningAppNetCoreApi.Controllers
             }
         }
 
+        [Authorize]
         [HttpPost("templates/{templateId}/assign")]
         public async Task<IActionResult> AssignPath(int templateId)
         {

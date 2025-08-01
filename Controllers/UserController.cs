@@ -17,6 +17,18 @@ namespace LearningAppNetCoreApi.Controllers
             _userService = userService;
         }
 
+        [HttpGet("me/subscription-status")]
+        public async Task<IActionResult> GetMySubscriptionStatus()
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
+
+            var status = await _userService.GetUserSubscriptionStatusAsync(firebaseUid);
+            if (status == null) return NotFound();
+
+            return Ok(status);
+        }
+
         [Authorize]
         [HttpPost("sync")]
         public async Task<IActionResult> SyncUser()
@@ -29,6 +41,17 @@ namespace LearningAppNetCoreApi.Controllers
             }
             // We can just return Ok, the main purpose is to ensure the user exists in the DB.
             return Ok(new { message = "User synchronized successfully." });
+        }
+
+        [Authorize]
+        [HttpPost("me/fcm-token")]
+        public async Task<IActionResult> UpdateFcmToken([FromBody] UpdateFcmTokenDto dto)
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
+
+            await _userService.UpdateFcmTokenAsync(firebaseUid, dto.FcmToken);
+            return Ok();
         }
 
         [Authorize]
@@ -69,18 +92,6 @@ namespace LearningAppNetCoreApi.Controllers
             }
 
             return StatusCode(500, "An error occurred while deleting the user account.");
-        }
-
-        [HttpGet("me/subscription-status")]
-        public async Task<IActionResult> GetMySubscriptionStatus()
-        {
-            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (firebaseUid == null) return Unauthorized();
-
-            var status = await _userService.GetUserSubscriptionStatusAsync(firebaseUid);
-            if (status == null) return NotFound();
-
-            return Ok(status);
         }
     }
 }

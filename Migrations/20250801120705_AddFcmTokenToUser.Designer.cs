@@ -3,6 +3,7 @@ using System;
 using LearningAppNetCoreApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250801120705_AddFcmTokenToUser")]
+    partial class AddFcmTokenToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -187,10 +190,6 @@ namespace LearningAppNetCoreApi.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("firebase_uid");
-
-                    b.Property<DateTime>("LastLoginDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_login_date");
 
                     b.Property<DateTime>("LastUsageResetDate")
                         .HasColumnType("timestamp with time zone")

@@ -17,6 +17,8 @@
         public int TotalPathsStarted { get; set; } = 0;
 
         public ICollection<UserPath> UserPaths { get; set; } = new List<UserPath>();
+        public string? FcmToken { get; set; }
+        public DateTime LastLoginDate { get; set; } = DateTime.UtcNow;
     }
 
     public enum SubscriptionTier

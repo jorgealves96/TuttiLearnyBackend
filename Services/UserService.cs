@@ -56,6 +56,11 @@ namespace LearningAppNetCoreApi.Services
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
             }
+            else
+            {
+                user.LastLoginDate = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+            }
 
             return user;
         }
@@ -130,6 +135,16 @@ namespace LearningAppNetCoreApi.Services
             await _context.SaveChangesAsync();
 
             return user;
+        }
+
+        public async Task UpdateFcmTokenAsync(string firebaseUid, string fcmToken)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user != null)
+            {
+                user.FcmToken = fcmToken;
+                await _context.SaveChangesAsync();
+            }
         }
 
         public async Task<bool> DeleteUserAsync(string firebaseUid)

@@ -6,8 +6,29 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Google.Cloud.SecretManager.V1;
 using Npgsql;
+using Quartz;
+using LearningAppNetCoreApi.Services.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- Add Quartz Service ---
+builder.Services.AddQuartz(q =>
+{
+    // Create a "key" for the job
+    var jobKey = new JobKey("SubscriptionValidationJob");
+
+    // Register the job with the DI container
+    q.AddJob<SubscriptionValidationJob>(opts => opts.WithIdentity(jobKey));
+
+    // Create a trigger that runs once a day
+    q.AddTrigger(opts => opts
+        .ForJob(jobKey)
+        .WithIdentity("SubscriptionValidationJob-trigger")
+        .WithCronSchedule("0 0 0 * * ?") // This cron expression means "run at midnight (00:00:00) every day"
+    );
+});
+
+builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 // --- Initialize Firebase Admin SDK ---
 if (builder.Environment.IsProduction())
@@ -78,6 +99,9 @@ builder.Services.AddScoped<ILearningPathService, LearningPathService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+
+builder.Services.AddTransient<SendLearningRemindersJob>();
+builder.Services.AddTransient<SubscriptionValidationJob>();
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();

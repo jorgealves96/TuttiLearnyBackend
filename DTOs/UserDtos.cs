@@ -20,4 +20,10 @@ namespace LearningAppNetCoreApi.Dtos
         public DateTime? SubscriptionExpiryDate { get; set; }
         public int? DaysLeftInSubscription { get; set; }
     }
+
+    public class UpdateFcmTokenDto
+    {
+        [Required]
+        public string FcmToken { get; set; }
+    }
 }

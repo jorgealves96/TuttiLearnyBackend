@@ -10,6 +10,7 @@ namespace LearningAppNetCoreApi.Services
         Task<User?> GetUserByFirebaseUidAsync(string firebaseUid);
         Task<UserSubscriptionStatusDto?> GetUserSubscriptionStatusAsync(string firebaseUid);
         Task<User> UpdateUserNameAsync(string firebaseUid, string newName);
+        Task UpdateFcmTokenAsync(string firebaseUid, string fcmToken);
         Task<bool> DeleteUserAsync(string firebaseUid);
     }
 }
