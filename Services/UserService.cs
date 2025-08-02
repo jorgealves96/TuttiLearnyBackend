@@ -147,6 +147,20 @@ namespace LearningAppNetCoreApi.Services
             }
         }
 
+        public async Task<bool> UpdateNotificationPreferenceAsync(string firebaseUid, bool isEnabled)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null)
+            {
+                return false;
+            }
+
+            user.NotificationsEnabled = isEnabled;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         public async Task<bool> DeleteUserAsync(string firebaseUid)
         {
             // Find the user in your local database

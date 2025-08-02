@@ -19,6 +19,7 @@
         public ICollection<UserPath> UserPaths { get; set; } = new List<UserPath>();
         public string? FcmToken { get; set; }
         public DateTime LastLoginDate { get; set; } = DateTime.UtcNow;
+        public bool NotificationsEnabled { get; set; } = true;
     }
 
     public enum SubscriptionTier

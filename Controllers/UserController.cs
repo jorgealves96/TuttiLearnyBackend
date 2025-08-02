@@ -55,6 +55,23 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [Authorize]
+        [HttpPost("me/notification-preference")]
+        public async Task<IActionResult> UpdateNotificationPreference([FromBody] UpdateNotificationPreferenceDto dto)
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
+
+            var success = await _userService.UpdateNotificationPreferenceAsync(firebaseUid, dto.IsEnabled);
+
+            if (!success)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+
+            return Ok(new { message = "Notification preference updated successfully." });
+        }
+
+        [Authorize]
         [HttpPatch("name")]
         public async Task<IActionResult> UpdateName([FromBody] UpdateUserDto dto)
         {

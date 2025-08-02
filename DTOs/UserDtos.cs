@@ -26,4 +26,9 @@ namespace LearningAppNetCoreApi.Dtos
         [Required]
         public string FcmToken { get; set; }
     }
+
+    public class UpdateNotificationPreferenceDto
+    {
+        public bool IsEnabled { get; set; }
+    }
 }
