@@ -18,6 +18,7 @@ namespace LearningAppNetCoreApi.Dtos
         public DateTime CreatedAt { get; set; }
         public List<PathItemResponseDto> PathItems { get; set; }
         public bool HasBeenRated { get; set; }
+        public bool HasOpenReport { get; set; }
     }
 
     public class PathItemResponseDto

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LearningAppNetCoreApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250803142724_AddQuizModels")]
+    partial class AddQuizModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -52,61 +55,6 @@ namespace LearningAppNetCoreApi.Migrations
                         .HasDatabaseName("ix_path_item_templates_path_template_id");
 
                     b.ToTable("path_item_templates", (string)null);
-                });
-
-            modelBuilder.Entity("LearningAppNetCoreApi.Models.PathReport", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("description");
-
-                    b.Property<int>("PathTemplateId")
-                        .HasColumnType("integer")
-                        .HasColumnName("path_template_id");
-
-                    b.Property<string>("ResolutionMessage")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("resolution_message");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer")
-                        .HasColumnName("status");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("integer")
-                        .HasColumnName("type");
-
-                    b.Property<bool>("UserAcknowledged")
-                        .HasColumnType("boolean")
-                        .HasColumnName("user_acknowledged");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_path_reports");
-
-                    b.HasIndex("PathTemplateId")
-                        .HasDatabaseName("ix_path_reports_path_template_id");
-
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_path_reports_user_id");
-
-                    b.ToTable("path_reports", (string)null);
                 });
 
             modelBuilder.Entity("LearningAppNetCoreApi.Models.PathTemplate", b =>
@@ -509,27 +457,6 @@ namespace LearningAppNetCoreApi.Migrations
                         .HasConstraintName("fk_path_item_templates_path_templates_path_template_id");
 
                     b.Navigation("PathTemplate");
-                });
-
-            modelBuilder.Entity("LearningAppNetCoreApi.Models.PathReport", b =>
-                {
-                    b.HasOne("LearningAppNetCoreApi.Models.PathTemplate", "PathTemplate")
-                        .WithMany()
-                        .HasForeignKey("PathTemplateId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_path_reports_path_templates_path_template_id");
-
-                    b.HasOne("LearningAppNetCoreApi.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_path_reports_users_user_id");
-
-                    b.Navigation("PathTemplate");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("LearningAppNetCoreApi.Models.PathTemplateRating", b =>

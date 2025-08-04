@@ -76,6 +76,11 @@ namespace LearningAppNetCoreApi.Services
 
             if (userPath == null) return null;
 
+            var hasOpenReport = await _context.PathReports.AnyAsync(r =>
+                r.UserId == user.Id &&
+                r.PathTemplateId == userPath.PathTemplateId &&
+                r.UserAcknowledged == false);
+
             var resourceProgress = await _context.UserResourceProgress
                 .Where(urp => urp.UserId == user.Id)
                 .ToDictionaryAsync(urp => urp.ResourceTemplateId);
@@ -88,6 +93,7 @@ namespace LearningAppNetCoreApi.Services
                 UserPathId = userPath.Id,
                 PathTemplateId = userPath.PathTemplateId,
                 HasBeenRated = hasRated,
+                HasOpenReport = hasOpenReport,
                 Title = userPath.PathTemplate.Title,
                 Description = userPath.PathTemplate.Description,
                 CreatedAt = userPath.StartedAt,
@@ -222,6 +228,78 @@ namespace LearningAppNetCoreApi.Services
             };
         }
 
+        public async Task<PathReportDto?> GetUserReportForPathAsync(int pathTemplateId, string firebaseUid)
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null) return null;
+
+            var report = await _context.PathReports
+                .Where(r => r.PathTemplateId == pathTemplateId && r.UserId == user.Id)
+                .OrderByDescending(r => r.CreatedAt) // Get the most recent report
+                .FirstOrDefaultAsync();
+
+            if (report == null) return null;
+
+            return new PathReportDto
+            {
+                Status = report.Status,
+                ResolutionMessage = report.ResolutionMessage
+            };
+        }
+
+        public async Task<bool> CreatePathReportAsync(int pathTemplateId, string firebaseUid, ReportType reportType, string? description)
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null) return false; // User not found
+
+            var hasOpenReport = await _context.PathReports.AnyAsync(r =>
+                r.PathTemplateId == pathTemplateId &&
+                r.UserId == user.Id &&
+                r.Status == ReportStatus.Submitted);
+
+            if (hasOpenReport)
+            {
+                // Throw an exception to inform the user
+                throw new InvalidOperationException("You already have an open report for this path.");
+            }
+
+            var pathTemplateExists = await _context.PathTemplates.AnyAsync(pt => pt.Id == pathTemplateId);
+            if (!pathTemplateExists) return false; // Path not found
+
+            var newReport = new PathReport
+            {
+                PathTemplateId = pathTemplateId,
+                UserId = user.Id,
+                Type = reportType,
+                Description = description
+            };
+
+            _context.PathReports.Add(newReport);
+            await _context.SaveChangesAsync();
+
+            return true; // Success
+        }
+
+        public async Task<bool> AcknowledgeReportAsync(int pathTemplateId, string firebaseUid)
+        {
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null) return false;
+
+            // Find the most recent resolved report for this path
+            var reportToAcknowledge = await _context.PathReports
+                .Where(r => r.PathTemplateId == pathTemplateId
+                       && r.UserId == user.Id
+                       && r.Status == ReportStatus.Resolved)
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (reportToAcknowledge == null) return false; // No resolved report found
+
+            reportToAcknowledge.UserAcknowledged = true;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
         public async Task<LearningPathResponseDto> GenerateNewPathAsync(string prompt, string firebaseUid)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
@@ -549,6 +627,84 @@ namespace LearningAppNetCoreApi.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task<QuizResponseDto> GetOrCreateQuizAsync(int pathTemplateId)
+        {
+            // First, check if a quiz for this path already exists to save API calls
+            var existingQuiz = await _context.QuizTemplates
+                .Include(q => q.Questions)
+                .FirstOrDefaultAsync(q => q.PathTemplateId == pathTemplateId);
+
+            if (existingQuiz != null)
+            {
+                return MapQuizToDto(existingQuiz);
+            }
+
+            // If not, generate a new one
+            var pathTemplate = await _context.PathTemplates.Include(p => p.PathItems)
+                .FirstOrDefaultAsync(p => p.Id == pathTemplateId);
+
+            if (pathTemplate == null) throw new Exception("Path not found.");
+
+            var geminiQuiz = await GetQuizFromGemini(pathTemplate);
+
+            // Save the new quiz to the database
+            var newQuizTemplate = new QuizTemplate
+            {
+                Title = geminiQuiz.Title,
+                PathTemplateId = pathTemplateId,
+                Questions = geminiQuiz.Questions.Select(q => new QuizQuestionTemplate
+                {
+                    QuestionText = q.QuestionText,
+                    Options = q.Options,
+                    CorrectAnswerIndex = q.CorrectAnswerIndex
+                }).ToList()
+            };
+
+            _context.QuizTemplates.Add(newQuizTemplate);
+            await _context.SaveChangesAsync();
+
+            return MapQuizToDto(newQuizTemplate);
+        }
+
+        public async Task SubmitQuizResultAsync(int quizTemplateId, SubmitQuizResultDto resultDto, string firebaseUid)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null) throw new Exception("User not found");
+
+            var result = new QuizResult
+            {
+                UserId = user.Id,
+                QuizTemplateId = quizTemplateId,
+                Score = resultDto.Score,
+                TotalQuestions = resultDto.TotalQuestions
+            };
+            _context.QuizResults.Add(result);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task SubmitQuizFeedbackAsync(int quizTemplateId, SubmitQuizFeedbackDto feedbackDto, string firebaseUid)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user == null) throw new Exception("User not found");
+
+            // Create or update feedback
+            var existingFeedback = await _context.QuizFeedbacks.FirstOrDefaultAsync(f => f.UserId == user.Id && f.QuizTemplateId == quizTemplateId);
+            if (existingFeedback != null)
+            {
+                existingFeedback.WasHelpful = feedbackDto.WasHelpful;
+            }
+            else
+            {
+                _context.QuizFeedbacks.Add(new QuizFeedback
+                {
+                    UserId = user.Id,
+                    QuizTemplateId = quizTemplateId,
+                    WasHelpful = feedbackDto.WasHelpful
+                });
+            }
+            await _context.SaveChangesAsync();
+        }
+
         #region Private Methods
 
         private async Task<GeminiResponseDto> GetLearningPathFromGemini(string userPrompt)
@@ -832,6 +988,48 @@ namespace LearningAppNetCoreApi.Services
                     IsCompleted = false
                 }).ToList()
             }).ToList();
+        }
+
+        private async Task<QuizResponseDto> GetQuizFromGemini(PathTemplate pathTemplate)
+        {
+            var apiUrl = GetGeminiApiUrl();
+            var promptTemplatePath = Path.Combine(_env.ContentRootPath, "Prompts", "QuizPrompt.txt");
+            var promptTemplate = await File.ReadAllTextAsync(promptTemplatePath);
+
+            var itemTitles = string.Join(", ", pathTemplate.PathItems.Select(pi => $"\"{pi.Title}\""));
+
+            // --- Add this line to get all resource titles ---
+            var resourceTitles = string.Join(", ", pathTemplate.PathItems.SelectMany(pi => pi.Resources).Select(r => $"\"{r.Title}\""));
+
+            // Inject the path context into the prompt
+            var fullPrompt = promptTemplate
+                .Replace("{pathTitle}", pathTemplate.Title)
+                .Replace("{pathDescription}", pathTemplate.Description)
+                .Replace("{pathItems}", itemTitles)
+                .Replace("{resources}", resourceTitles);
+
+            var payload = new
+            {
+                contents = new[] { new { parts = new[] { new { text = fullPrompt } } } },
+            };
+
+            return await CallAndParseGeminiObjectAsync<QuizResponseDto>(apiUrl, payload);
+        }
+
+        private QuizResponseDto MapQuizToDto(QuizTemplate quizTemplate)
+        {
+            return new QuizResponseDto
+            {
+                Id = quizTemplate.Id,
+                Title = quizTemplate.Title,
+                Questions = quizTemplate.Questions.Select(q => new QuizQuestionDto
+                {
+                    Id = q.Id,
+                    QuestionText = q.QuestionText,
+                    Options = q.Options,
+                    CorrectAnswerIndex = q.CorrectAnswerIndex
+                }).ToList()
+            };
         }
 
         #endregion

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LearningAppNetCoreApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250804011840_AddResolutionMsgToPathReport")]
+    partial class AddResolutionMsgToPathReport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -88,10 +91,6 @@ namespace LearningAppNetCoreApi.Migrations
                     b.Property<int>("Type")
                         .HasColumnType("integer")
                         .HasColumnName("type");
-
-                    b.Property<bool>("UserAcknowledged")
-                        .HasColumnType("boolean")
-                        .HasColumnName("user_acknowledged");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")

@@ -1,4 +1,5 @@
 ﻿using LearningAppNetCoreApi.Dtos;
+using LearningAppNetCoreApi.Models;
 
 namespace LearningAppNetCoreApi.Services
 {
@@ -10,10 +11,16 @@ namespace LearningAppNetCoreApi.Services
         Task<List<PathItemResponseDto>> ExtendLearningPathAsync(int userPathId, string firebaseUid);
         Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string firebaseUid);
         Task<LearningPathResponseDto> GetPathByIdAsync(int userPathId, string firebaseUid);
+        Task<PathReportDto?> GetUserReportForPathAsync(int pathTemplateId, string firebaseUid);
+        Task<bool> CreatePathReportAsync(int pathTemplateId, string firebaseUid, ReportType reportType, string? description);
+        Task<bool> AcknowledgeReportAsync(int pathTemplateId, string firebaseUid);
         Task<PathItemResponseDto> TogglePathItemCompletionAsync(int pathItemTemplateId, string firebaseUid);
         Task<ResourceResponseDto> ToggleResourceCompletionAsync(int resourceTemplateId, string firebaseUid);
         Task<bool> RatePathAsync(int pathTemplateId, string firebaseUid, int rating);
         Task<bool> DeletePathAsync(int userPathId, string firebaseUid);
         Task DeleteAllUserPathsAsync(string firebaseUid);
+        Task<QuizResponseDto> GetOrCreateQuizAsync(int pathTemplateId);
+        Task SubmitQuizResultAsync(int quizTemplateId, SubmitQuizResultDto resultDto, string firebaseUid);
+        Task SubmitQuizFeedbackAsync(int quizTemplateId, SubmitQuizFeedbackDto feedbackDto, string firebaseUid);
     }
 }

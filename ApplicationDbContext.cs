@@ -19,6 +19,13 @@ namespace LearningAppNetCoreApi
         public DbSet<UserPath> UserPaths { get; set; }
         public DbSet<UserResourceProgress> UserResourceProgress { get; set; }
         public DbSet<PathTemplateRating> PathTemplateRatings { get; set; }
+        public DbSet<PathReport> PathReports { get; set; }
+
+        // --- Quiz Tables ---
+
+        public DbSet<QuizResult> QuizResults { get; set; }
+        public DbSet<QuizTemplate> QuizTemplates { get; set; }
+        public DbSet<QuizFeedback> QuizFeedbacks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
