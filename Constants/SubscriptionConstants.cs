@@ -7,5 +7,8 @@
 
         public const int ProPathGenerationLimit = 15;
         public const int ProPathExtensionLimit = 15;
+
+        public const int FreeQuizCreationLimit = 3;
+        public const int ProQuizCreationLimit = 30;
     }
 }

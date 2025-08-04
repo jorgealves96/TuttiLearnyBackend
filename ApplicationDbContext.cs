@@ -25,7 +25,9 @@ namespace LearningAppNetCoreApi
 
         public DbSet<QuizResult> QuizResults { get; set; }
         public DbSet<QuizTemplate> QuizTemplates { get; set; }
+        public DbSet<QuizQuestionTemplate> QuizQuestionTemplates { get; set; }
         public DbSet<QuizFeedback> QuizFeedbacks { get; set; }
+        public DbSet<UserQuizAnswer> UserQuizAnswers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -31,7 +31,7 @@ namespace LearningAppNetCoreApi.Services
                 };
             }
 
-            // 1. Get all paths the user has started
+            // Get all paths the user has started
             var userPaths = await _context.UserPaths
                 .Where(up => up.UserId == user.Id)
                 .Include(up => up.PathTemplate)
@@ -39,13 +39,13 @@ namespace LearningAppNetCoreApi.Services
                     .ThenInclude(pit => pit.Resources)
                 .ToListAsync();
 
-            // 2. Get a set of all completed resource IDs for this user for efficient lookup
+            // Get a set of all completed resource IDs for this user for efficient lookup
             var completedResourceIds = await _context.UserResourceProgress
                 .Where(urp => urp.UserId == user.Id && urp.IsCompleted)
                 .Select(urp => urp.ResourceTemplateId)
                 .ToHashSetAsync();
 
-            // 3. Calculate the number of completed paths
+            // Calculate the number of completed paths
             int completedPathsCount = 0;
             foreach (var userPath in userPaths)
             {
@@ -61,13 +61,17 @@ namespace LearningAppNetCoreApi.Services
                 }
             }
 
-            // 4. Assemble the final statistics DTO
+            var quizzesCompletedCount = await _context.QuizResults
+    .CountAsync(qr => qr.UserId == user.Id && qr.IsComplete);
+
+            // Assemble the final statistics DTO
             var stats = new ProfileStatsDto
             {
                 PathsStarted = user.TotalPathsStarted,
                 PathsInProgress = userPaths.Count,
                 PathsCompleted = completedPathsCount,
-                ItemsCompleted = completedResourceIds.Count, // The total count of completed resources
+                ItemsCompleted = completedResourceIds.Count,
+                QuizzesCompleted = quizzesCompletedCount,
                 JoinedDate = user.CreatedAt
             };
 

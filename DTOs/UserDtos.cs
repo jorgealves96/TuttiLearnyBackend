@@ -15,8 +15,10 @@ namespace LearningAppNetCoreApi.Dtos
         public SubscriptionTier Tier { get; set; }
         public int PathsGeneratedThisMonth { get; set; }
         public int PathsExtendedThisMonth { get; set; }
+        public int QuizzesCreatedThisMonth { get; set; }
         public int? PathGenerationLimit { get; set; }
         public int? PathExtensionLimit { get; set; }
+        public int? QuizCreationLimit { get; set; }
         public DateTime? SubscriptionExpiryDate { get; set; }
         public int? DaysLeftInSubscription { get; set; }
     }

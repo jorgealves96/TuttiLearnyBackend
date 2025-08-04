@@ -19,8 +19,5 @@ namespace LearningAppNetCoreApi.Services
         Task<bool> RatePathAsync(int pathTemplateId, string firebaseUid, int rating);
         Task<bool> DeletePathAsync(int userPathId, string firebaseUid);
         Task DeleteAllUserPathsAsync(string firebaseUid);
-        Task<QuizResponseDto> GetOrCreateQuizAsync(int pathTemplateId);
-        Task SubmitQuizResultAsync(int quizTemplateId, SubmitQuizResultDto resultDto, string firebaseUid);
-        Task SubmitQuizFeedbackAsync(int quizTemplateId, SubmitQuizFeedbackDto feedbackDto, string firebaseUid);
     }
 }

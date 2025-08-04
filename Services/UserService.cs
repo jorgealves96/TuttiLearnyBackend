@@ -95,7 +95,8 @@ namespace LearningAppNetCoreApi.Services
                 Tier = user.Tier,
                 PathsGeneratedThisMonth = user.PathsGeneratedThisMonth,
                 PathsExtendedThisMonth = user.PathsExtendedThisMonth,
-                SubscriptionExpiryDate = user.SubscriptionExpiryDate
+                SubscriptionExpiryDate = user.SubscriptionExpiryDate,
+                QuizzesCreatedThisMonth = user.QuizzesCreatedThisMonth
             };
 
             if (user.SubscriptionExpiryDate.HasValue)
@@ -109,14 +110,17 @@ namespace LearningAppNetCoreApi.Services
                 case SubscriptionTier.Free:
                     dto.PathGenerationLimit = SubscriptionConstants.FreePathGenerationLimit;
                     dto.PathExtensionLimit = SubscriptionConstants.FreePathExtensionLimit;
+                    dto.QuizCreationLimit = SubscriptionConstants.FreeQuizCreationLimit;
                     break;
                 case SubscriptionTier.Pro:
                     dto.PathGenerationLimit = SubscriptionConstants.ProPathGenerationLimit;
                     dto.PathExtensionLimit = SubscriptionConstants.ProPathExtensionLimit;
+                    dto.QuizCreationLimit = SubscriptionConstants.ProQuizCreationLimit;
                     break;
                 case SubscriptionTier.Unlimited:
                     dto.PathGenerationLimit = null; // null means unlimited
                     dto.PathExtensionLimit = null;
+                    dto.QuizCreationLimit = null;
                     break;
             }
 

@@ -81,16 +81,23 @@ if (builder.Environment.IsProduction())
         SslMode = SslMode.Disable, // Required for Cloud SQL Auth Proxy
         Pooling = true
     };
+    var prodDataSourceBuilder = new NpgsqlDataSourceBuilder(connectionStringBuilder.ConnectionString);
+    prodDataSourceBuilder.EnableDynamicJson();
+    var prodDataSource = prodDataSourceBuilder.Build();
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(connectionStringBuilder.ConnectionString)
+        options.UseNpgsql(prodDataSource)
                .UseSnakeCaseNamingConvention());
 }
 else
 {
     // For local development, use your existing appsettings.json
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    var localDataSourceBuilder = new NpgsqlDataSourceBuilder(builder.Configuration.GetConnectionString("DefaultConnection"));
+    localDataSourceBuilder.EnableDynamicJson();
+    var localDataSource = localDataSourceBuilder.Build();
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseNpgsql(connectionString)
+        options.UseNpgsql(localDataSource)
                .UseSnakeCaseNamingConvention());
 }
 
@@ -99,6 +106,7 @@ builder.Services.AddScoped<ILearningPathService, LearningPathService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IQuizService, QuizService>();
 
 builder.Services.AddTransient<SendLearningRemindersJob>();
 builder.Services.AddTransient<SubscriptionValidationJob>();

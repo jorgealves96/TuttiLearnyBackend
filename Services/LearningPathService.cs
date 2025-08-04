@@ -627,84 +627,6 @@ namespace LearningAppNetCoreApi.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<QuizResponseDto> GetOrCreateQuizAsync(int pathTemplateId)
-        {
-            // First, check if a quiz for this path already exists to save API calls
-            var existingQuiz = await _context.QuizTemplates
-                .Include(q => q.Questions)
-                .FirstOrDefaultAsync(q => q.PathTemplateId == pathTemplateId);
-
-            if (existingQuiz != null)
-            {
-                return MapQuizToDto(existingQuiz);
-            }
-
-            // If not, generate a new one
-            var pathTemplate = await _context.PathTemplates.Include(p => p.PathItems)
-                .FirstOrDefaultAsync(p => p.Id == pathTemplateId);
-
-            if (pathTemplate == null) throw new Exception("Path not found.");
-
-            var geminiQuiz = await GetQuizFromGemini(pathTemplate);
-
-            // Save the new quiz to the database
-            var newQuizTemplate = new QuizTemplate
-            {
-                Title = geminiQuiz.Title,
-                PathTemplateId = pathTemplateId,
-                Questions = geminiQuiz.Questions.Select(q => new QuizQuestionTemplate
-                {
-                    QuestionText = q.QuestionText,
-                    Options = q.Options,
-                    CorrectAnswerIndex = q.CorrectAnswerIndex
-                }).ToList()
-            };
-
-            _context.QuizTemplates.Add(newQuizTemplate);
-            await _context.SaveChangesAsync();
-
-            return MapQuizToDto(newQuizTemplate);
-        }
-
-        public async Task SubmitQuizResultAsync(int quizTemplateId, SubmitQuizResultDto resultDto, string firebaseUid)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
-            if (user == null) throw new Exception("User not found");
-
-            var result = new QuizResult
-            {
-                UserId = user.Id,
-                QuizTemplateId = quizTemplateId,
-                Score = resultDto.Score,
-                TotalQuestions = resultDto.TotalQuestions
-            };
-            _context.QuizResults.Add(result);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task SubmitQuizFeedbackAsync(int quizTemplateId, SubmitQuizFeedbackDto feedbackDto, string firebaseUid)
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
-            if (user == null) throw new Exception("User not found");
-
-            // Create or update feedback
-            var existingFeedback = await _context.QuizFeedbacks.FirstOrDefaultAsync(f => f.UserId == user.Id && f.QuizTemplateId == quizTemplateId);
-            if (existingFeedback != null)
-            {
-                existingFeedback.WasHelpful = feedbackDto.WasHelpful;
-            }
-            else
-            {
-                _context.QuizFeedbacks.Add(new QuizFeedback
-                {
-                    UserId = user.Id,
-                    QuizTemplateId = quizTemplateId,
-                    WasHelpful = feedbackDto.WasHelpful
-                });
-            }
-            await _context.SaveChangesAsync();
-        }
-
         #region Private Methods
 
         private async Task<GeminiResponseDto> GetLearningPathFromGemini(string userPrompt)
@@ -988,48 +910,6 @@ namespace LearningAppNetCoreApi.Services
                     IsCompleted = false
                 }).ToList()
             }).ToList();
-        }
-
-        private async Task<QuizResponseDto> GetQuizFromGemini(PathTemplate pathTemplate)
-        {
-            var apiUrl = GetGeminiApiUrl();
-            var promptTemplatePath = Path.Combine(_env.ContentRootPath, "Prompts", "QuizPrompt.txt");
-            var promptTemplate = await File.ReadAllTextAsync(promptTemplatePath);
-
-            var itemTitles = string.Join(", ", pathTemplate.PathItems.Select(pi => $"\"{pi.Title}\""));
-
-            // --- Add this line to get all resource titles ---
-            var resourceTitles = string.Join(", ", pathTemplate.PathItems.SelectMany(pi => pi.Resources).Select(r => $"\"{r.Title}\""));
-
-            // Inject the path context into the prompt
-            var fullPrompt = promptTemplate
-                .Replace("{pathTitle}", pathTemplate.Title)
-                .Replace("{pathDescription}", pathTemplate.Description)
-                .Replace("{pathItems}", itemTitles)
-                .Replace("{resources}", resourceTitles);
-
-            var payload = new
-            {
-                contents = new[] { new { parts = new[] { new { text = fullPrompt } } } },
-            };
-
-            return await CallAndParseGeminiObjectAsync<QuizResponseDto>(apiUrl, payload);
-        }
-
-        private QuizResponseDto MapQuizToDto(QuizTemplate quizTemplate)
-        {
-            return new QuizResponseDto
-            {
-                Id = quizTemplate.Id,
-                Title = quizTemplate.Title,
-                Questions = quizTemplate.Questions.Select(q => new QuizQuestionDto
-                {
-                    Id = q.Id,
-                    QuestionText = q.QuestionText,
-                    Options = q.Options,
-                    CorrectAnswerIndex = q.CorrectAnswerIndex
-                }).ToList()
-            };
         }
 
         #endregion

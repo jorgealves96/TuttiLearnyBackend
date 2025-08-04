@@ -13,6 +13,7 @@
 
         public int PathsGeneratedThisMonth { get; set; } = 0;
         public int PathsExtendedThisMonth { get; set; } = 0;
+        public int QuizzesCreatedThisMonth { get; set; } = 0;
         public DateTime LastUsageResetDate { get; set; } = DateTime.UtcNow;
         public int TotalPathsStarted { get; set; } = 0;
 

@@ -19,6 +19,7 @@ namespace LearningAppNetCoreApi.Services
             {
                 user.PathsGeneratedThisMonth = 0;
                 user.PathsExtendedThisMonth = 0;
+                user.QuizzesCreatedThisMonth = 0;
                 user.LastUsageResetDate = DateTime.UtcNow;
             }
 
