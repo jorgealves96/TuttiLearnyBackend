@@ -300,6 +300,7 @@ namespace LearningAppNetCoreApi.Services
 
             return true;
         }
+
         public async Task<LearningPathResponseDto> GenerateNewPathAsync(string prompt, string firebaseUid)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
@@ -371,6 +372,28 @@ namespace LearningAppNetCoreApi.Services
                     else
                     {
                         resourceUrl = await SearchForUrlAsync(resourceDto.SearchQuery);
+                    }
+
+                    // Check for the special quota exceeded string.
+                    if (resourceUrl == "QUOTA_EXCEEDED")
+                    {
+                        // Add the resource but with a modified title and an empty URL.
+                        pathItemTemplate.Resources.Add(new ResourceTemplate
+                        {
+                            Title = $"{resourceDto.Title} (Video temporarily unavailable)",
+                            Type = resourceType,
+                            Url = "" // Empty URL
+                        });
+                    }
+                    else if (!string.IsNullOrEmpty(resourceUrl))
+                    {
+                        // This is the normal success case.
+                        pathItemTemplate.Resources.Add(new ResourceTemplate
+                        {
+                            Title = resourceDto.Title,
+                            Type = resourceType,
+                            Url = resourceUrl
+                        });
                     }
 
                     if (!string.IsNullOrEmpty(resourceUrl))
@@ -800,31 +823,31 @@ namespace LearningAppNetCoreApi.Services
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    // --- Throw exception on API failure ---
-                    // Check if the error is due to a quota limit
+                    // If the error is due to a quota limit, return a special string.
                     if (jsonResponse.Contains("quotaExceeded"))
                     {
-                        throw new ApiQuotaExceededException("YouTube API quota exceeded. Cannot generate path.");
+                        return "QUOTA_EXCEEDED";
                     }
-                    // For other API errors
+
+                    // For other API errors, we will let it return null below.
                     throw new HttpRequestException($"YouTube API returned an error: {response.ReasonPhrase}");
                 }
 
                 var youtubeResult = JsonConvert.DeserializeObject<YouTubeSearchResponseDto>(jsonResponse);
-
                 string? videoId = youtubeResult?.Items?.FirstOrDefault()?.Id?.VideoId;
 
+                // If no video is found, return null
                 if (string.IsNullOrEmpty(videoId))
                 {
-                    // Throw an exception if no video is found for the query
-                    throw new Exception($"No YouTube video found for query: '{query}'");
+                    return null;
                 }
 
                 return $"https://www.youtube.com/watch?v={videoId}";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during YouTube search: {ex.Message}");
+                Console.WriteLine($"Error during Youtube search: {ex.Message}");
+                // For any other exception, return null.
                 return null;
             }
         }
