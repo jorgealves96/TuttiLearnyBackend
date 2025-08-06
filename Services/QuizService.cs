@@ -13,7 +13,7 @@ namespace LearningAppNetCoreApi.Services
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
+        private readonly IWebHostEnvironment _env;
 
         public QuizService(ApplicationDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
         {
@@ -26,7 +26,7 @@ namespace LearningAppNetCoreApi.Services
         public async Task<QuizResponseDto> CreateQuizAsync(int pathTemplateId, string firebaseUid)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new Exception("User not found.");
-            
+
             var quizLimit = GetQuizLimitForTier(user.Tier);
 
             if (quizLimit.HasValue && user.QuizzesCreatedThisMonth >= quizLimit.Value)
@@ -37,14 +37,14 @@ namespace LearningAppNetCoreApi.Services
             var pathTemplate = await _context.PathTemplates
                 .Include(p => p.PathItems)
                 .ThenInclude(pi => pi.Resources)
-                .FirstOrDefaultAsync(p => p.Id == pathTemplateId);
-
-            if (pathTemplate == null) throw new Exception("Path not found.");
+                .FirstOrDefaultAsync(p => p.Id == pathTemplateId) ?? throw new Exception("Path not found.");
 
             var pastQuestions = await _context.QuizQuestionTemplates
                 .Where(q => q.QuizTemplate.PathTemplateId == pathTemplateId)
+                .OrderByDescending(q => q.Id)
+                .Take(50)
                 .Select(q => q.QuestionText)
-                .ToListAsync();
+                .ToListAsync(); // Limiting it to the last max 50 questions the user got should be enough for context
 
             var geminiQuiz = await GetQuizFromGemini(pathTemplate, pastQuestions);
 
