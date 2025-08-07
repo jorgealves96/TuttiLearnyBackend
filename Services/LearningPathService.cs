@@ -358,7 +358,12 @@ namespace LearningAppNetCoreApi.Services
                     Resources = new List<ResourceTemplate>()
                 };
 
-                foreach (var resourceDto in itemDto.Resources ?? new List<GeminiResourceDto>())
+                var uniqueResources = itemDto.Resources
+                    .GroupBy(r => r.Title)
+                    .Select(g => g.First())
+                    .ToList();
+
+                foreach (var resourceDto in uniqueResources)
                 {
                     if (string.IsNullOrEmpty(resourceDto.SearchQuery)) continue;
 
@@ -393,16 +398,6 @@ namespace LearningAppNetCoreApi.Services
                     else if (!string.IsNullOrEmpty(resourceUrl))
                     {
                         // This is the normal success case.
-                        pathItemTemplate.Resources.Add(new ResourceTemplate
-                        {
-                            Title = resourceDto.Title,
-                            Type = resourceType,
-                            Url = resourceUrl
-                        });
-                    }
-
-                    if (!string.IsNullOrEmpty(resourceUrl))
-                    {
                         pathItemTemplate.Resources.Add(new ResourceTemplate
                         {
                             Title = resourceDto.Title,
