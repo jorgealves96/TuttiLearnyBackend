@@ -117,8 +117,21 @@ namespace LearningAppNetCoreApi.Services
             };
         }
 
-        public async Task<IEnumerable<PathTemplateSummaryDto>> FindSimilarPathsAsync(string prompt)
+        public async Task<IEnumerable<PathTemplateSummaryDto>> FindSimilarPathsAsync(string prompt, string firebaseUid)
         {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new Exception("User not found.");
+            ResetMonthlyUsageCounters(user);
+
+            // Then, check the user's limit before proceeding
+            var pathLimit = GetPathGenerationLimitForTier(user.Tier);
+            if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
+            {
+                // Return an empty list to signal that the user should go directly to generation,
+                // which will then fail with the 429 error and show the upgrade dialog.
+                return new List<PathTemplateSummaryDto>();
+            }
+
+
             // A more comprehensive list of common words to ignore in the search.
             var stopWords = new HashSet<string> {
                 "a", "an", "the", "in", "on", "of", "for", "to", "with", "by",
@@ -176,6 +189,12 @@ namespace LearningAppNetCoreApi.Services
         public async Task<LearningPathResponseDto> AssignPathToUserAsync(int pathTemplateId, string firebaseUid)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
+
+            var pathLimit = GetPathGenerationLimitForTier(user.Tier);
+            if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
+            {
+                throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
+            }
 
             var existingUserPath = await _context.UserPaths
                 .FirstOrDefaultAsync(up => up.UserId == user.Id && up.PathTemplateId == pathTemplateId);
@@ -305,25 +324,11 @@ namespace LearningAppNetCoreApi.Services
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
 
-            // --- 1. Check if the monthly usage counters need to be reset ---
-            var now = DateTime.UtcNow;
-            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
-            {
-                user.PathsGeneratedThisMonth = 0;
-                user.PathsExtendedThisMonth = 0;
-                user.LastUsageResetDate = now;
-            }
+            ResetMonthlyUsageCounters(user);
 
-            // --- 2. Check if the user is within their limits based on tier ---
-            if (user.Tier == SubscriptionTier.Free && user.PathsGeneratedThisMonth >= SubscriptionConstants.FreePathGenerationLimit)
+            var pathLimit = GetPathGenerationLimitForTier(user.Tier);
+            if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
             {
-                // Throw the new custom exception
-                throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
-            }
-
-            if (user.Tier == SubscriptionTier.Pro && user.PathsGeneratedThisMonth >= SubscriptionConstants.ProPathGenerationLimit)
-            {
-                // Throw the new custom exception
                 throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
             }
 
@@ -423,20 +428,10 @@ namespace LearningAppNetCoreApi.Services
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
 
-            var now = DateTime.UtcNow;
-            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
-            {
-                user.PathsGeneratedThisMonth = 0;
-                user.PathsExtendedThisMonth = 0;
-                user.LastUsageResetDate = now;
-            }
+            ResetMonthlyUsageCounters(user);
 
-            if (user.Tier == SubscriptionTier.Free && user.PathsExtendedThisMonth >= SubscriptionConstants.FreePathExtensionLimit)
-            {
-                throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Please upgrade to continue.");
-            }
-
-            if (user.Tier == SubscriptionTier.Pro && user.PathsExtendedThisMonth >= SubscriptionConstants.ProPathExtensionLimit)
+            var extensionLimit = GetPathExtensionLimitForTier(user.Tier);
+            if (extensionLimit.HasValue && user.PathsExtendedThisMonth >= extensionLimit.Value)
             {
                 throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Please upgrade to continue.");
             }
@@ -449,7 +444,7 @@ namespace LearningAppNetCoreApi.Services
                 ?? throw new InvalidOperationException("Learning path not found for this user.");
 
             var newItemsFromGemini = await GetNextPathItemsFromGemini(userPath.PathTemplate);
-            if (newItemsFromGemini == null || !newItemsFromGemini.Any()) return new List<PathItemResponseDto>();
+            if (newItemsFromGemini == null || newItemsFromGemini.Count == 0) return new List<PathItemResponseDto>();
 
             var forkedPathTemplate = ForkPathTemplate(userPath.PathTemplate);
 
@@ -933,6 +928,50 @@ namespace LearningAppNetCoreApi.Services
                     IsCompleted = false
                 }).ToList()
             }).ToList();
+        }
+
+        private void ResetMonthlyUsageCounters(User user)
+        {
+            var now = DateTime.UtcNow;
+            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.QuizzesCreatedThisMonth = 0;
+                user.LastUsageResetDate = now;
+
+                // Note: This method only modifies the user object.
+                // The calling method is responsible for saving the changes to the database.
+                // This is why there is no `_context.SaveChangesAsync()` here.
+            }
+        }
+
+        private static int? GetPathGenerationLimitForTier(SubscriptionTier tier)
+        {
+            switch (tier)
+            {
+                case SubscriptionTier.Free:
+                    return SubscriptionConstants.FreePathGenerationLimit;
+                case SubscriptionTier.Pro:
+                    return SubscriptionConstants.ProPathGenerationLimit;
+                case SubscriptionTier.Unlimited:
+                default:
+                    return null; // Unlimited
+            }
+        }
+
+        private int? GetPathExtensionLimitForTier(SubscriptionTier tier)
+        {
+            switch (tier)
+            {
+                case SubscriptionTier.Free:
+                    return SubscriptionConstants.FreePathExtensionLimit;
+                case SubscriptionTier.Pro:
+                    return SubscriptionConstants.ProPathExtensionLimit;
+                case SubscriptionTier.Unlimited:
+                default:
+                    return null; // Null represents an unlimited amount
+            }
         }
 
         #endregion

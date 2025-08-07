@@ -27,6 +27,8 @@ namespace LearningAppNetCoreApi.Services
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new Exception("User not found.");
 
+            ResetMonthlyUsageCounters(user);
+
             var quizLimit = GetQuizLimitForTier(user.Tier);
 
             if (quizLimit.HasValue && user.QuizzesCreatedThisMonth >= quizLimit.Value)
@@ -355,6 +357,22 @@ namespace LearningAppNetCoreApi.Services
                 case SubscriptionTier.Unlimited:
                 default:
                     return null; // Null means unlimited
+            }
+        }
+
+        private void ResetMonthlyUsageCounters(User user)
+        {
+            var now = DateTime.UtcNow;
+            if (user.LastUsageResetDate.Month != now.Month || user.LastUsageResetDate.Year != now.Year)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.QuizzesCreatedThisMonth = 0;
+                user.LastUsageResetDate = now;
+
+                // Note: This method only modifies the user object.
+                // The calling method is responsible for saving the changes to the database.
+                // This is why there is no `_context.SaveChangesAsync()` here.
             }
         }
 

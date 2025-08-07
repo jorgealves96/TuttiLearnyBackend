@@ -6,7 +6,7 @@ namespace LearningAppNetCoreApi.Services
     public interface ILearningPathService
     {
         Task<LearningPathResponseDto> GenerateNewPathAsync(string prompt, string firebaseUid);
-        Task<IEnumerable<PathTemplateSummaryDto>> FindSimilarPathsAsync(string prompt);
+        Task<IEnumerable<PathTemplateSummaryDto>> FindSimilarPathsAsync(string prompt, string firebaseUid);
         Task<LearningPathResponseDto> AssignPathToUserAsync(int pathTemplateId, string firebaseUid);
         Task<List<PathItemResponseDto>> ExtendLearningPathAsync(int userPathId, string firebaseUid);
         Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string firebaseUid);

@@ -39,6 +39,7 @@ namespace LearningAppNetCoreApi.Controllers
         public async Task<IActionResult> GetPathById(int userPathId)
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
 
             var path = await _learningPathService.GetPathByIdAsync(userPathId, firebaseUid);
             if (path == null) return NotFound();
@@ -48,7 +49,10 @@ namespace LearningAppNetCoreApi.Controllers
         [HttpPost("suggestions")]
         public async Task<IActionResult> GetSuggestions([FromBody] CreatePathRequestDto dto)
         {
-            var suggestions = await _learningPathService.FindSimilarPathsAsync(dto.Prompt);
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (firebaseUid == null) return Unauthorized();
+
+            var suggestions = await _learningPathService.FindSimilarPathsAsync(dto.Prompt, firebaseUid);
             return Ok(suggestions);
         }
 
@@ -83,12 +87,27 @@ namespace LearningAppNetCoreApi.Controllers
         [HttpPost("templates/{templateId}/assign")]
         public async Task<IActionResult> AssignPath(int templateId)
         {
-            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(firebaseUid)) return Unauthorized();
+            try
+            {
+                var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(firebaseUid)) return Unauthorized();
 
-            var assignedPath = await _learningPathService.AssignPathToUserAsync(templateId, firebaseUid);
-            if (assignedPath == null) return NotFound();
-            return CreatedAtAction(nameof(GetPathById), new { userPathId = assignedPath.UserPathId }, assignedPath);
+                var assignedPath = await _learningPathService.AssignPathToUserAsync(templateId, firebaseUid);
+
+                if (assignedPath == null) return NotFound();
+
+                return CreatedAtAction(nameof(GetPathById), new { userPathId = assignedPath.UserPathId }, assignedPath);
+            }
+            catch (UsageLimitExceededException ex)
+            {
+                // This returns the correct 429 status code with the detailed error message
+                return StatusCode(429, new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                // Catch any other unexpected errors
+                return StatusCode(500, new { message = $"An unexpected error occurred: {ex.Message}" });
+            }
         }
 
         [Authorize]
