@@ -4,8 +4,7 @@ using Quartz;
 
 namespace LearningAppNetCoreApi.Services.Jobs
 {
-    [DisallowConcurrentExecution] // Prevents the job from running multiple times if one takes too long
-    public class SubscriptionValidationJob : IJob
+    public class SubscriptionValidationJob
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SubscriptionValidationJob> _logger;
@@ -16,13 +15,12 @@ namespace LearningAppNetCoreApi.Services.Jobs
             _logger = logger;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        // Changed from Execute to a public method we can call
+        public async Task<string> ExecuteAsync()
         {
-            _logger.LogInformation("Starting daily subscription validation job...");
+            _logger.LogInformation("Executing subscription validation logic...");
 
             var now = DateTime.UtcNow;
-
-            // Find all non-free users whose subscription has expired
             var expiredUsers = await _context.Users
                 .Where(u => u.Tier != SubscriptionTier.Free && u.SubscriptionExpiryDate <= now)
                 .ToListAsync();
@@ -30,7 +28,7 @@ namespace LearningAppNetCoreApi.Services.Jobs
             if (!expiredUsers.Any())
             {
                 _logger.LogInformation("No expired subscriptions found.");
-                return;
+                return "No expired subscriptions found.";
             }
 
             foreach (var user in expiredUsers)
@@ -41,7 +39,9 @@ namespace LearningAppNetCoreApi.Services.Jobs
             }
 
             await _context.SaveChangesAsync();
-            _logger.LogInformation($"Successfully processed {expiredUsers.Count} expired subscriptions.");
+            var successMessage = $"Successfully processed {expiredUsers.Count} expired subscriptions.";
+            _logger.LogInformation(successMessage);
+            return successMessage;
         }
     }
 }

@@ -1,12 +1,10 @@
 ﻿using FirebaseAdmin.Messaging;
 using LearningAppNetCoreApi.Models;
 using Microsoft.EntityFrameworkCore;
-using Quartz;
 
 namespace LearningAppNetCoreApi.Services.Jobs
 {
-    [DisallowConcurrentExecution]
-    public class SendLearningRemindersJob : IJob
+    public class SendLearningRemindersJob
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<SendLearningRemindersJob> _logger;
@@ -17,13 +15,12 @@ namespace LearningAppNetCoreApi.Services.Jobs
             _logger = logger;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async Task<string> ExecuteAsync()
         {
             _logger.LogInformation("Starting learning reminder job...");
 
             var inactivityThreshold = DateTime.UtcNow.AddDays(-3);
 
-            // Find users who have an FCM token AND haven't logged in recently
             var inactiveUsers = await _context.Users
                 .Where(u => !string.IsNullOrEmpty(u.FcmToken) && u.LastLoginDate < inactivityThreshold)
                 .Include(u => u.UserPaths)
@@ -36,7 +33,6 @@ namespace LearningAppNetCoreApi.Services.Jobs
 
             foreach (var user in inactiveUsers)
             {
-                // Check if the user has any path that is not yet complete
                 bool hasUnfinishedPath = user.UserPaths.Any(userPath =>
                 {
                     var allResourceIdsInPath = userPath.PathTemplate.PathItems
@@ -44,7 +40,7 @@ namespace LearningAppNetCoreApi.Services.Jobs
                         .Select(r => r.Id)
                         .ToHashSet();
 
-                    if (allResourceIdsInPath.Count == 0) return false; // Path has no content
+                    if (!allResourceIdsInPath.Any()) return false;
 
                     var completedResourceCount = _context.UserResourceProgress
                         .Count(urp => urp.UserId == user.Id &&
@@ -60,13 +56,14 @@ namespace LearningAppNetCoreApi.Services.Jobs
                 }
             }
 
+            int successCount = 0;
             foreach (var user in usersToNotify)
             {
                 var message = new Message()
                 {
                     Notification = new Notification
                     {
-                        Title = "Ready to continue your journey?",
+                        Title = "Ready to continue your journey? 🚀",
                         Body = $"Don't forget to finish your learning path, {user.Name}!"
                     },
                     Token = user.FcmToken
@@ -76,6 +73,7 @@ namespace LearningAppNetCoreApi.Services.Jobs
                 {
                     await FirebaseMessaging.DefaultInstance.SendAsync(message);
                     _logger.LogInformation($"Sent reminder to user {user.Id}");
+                    successCount++;
                 }
                 catch (Exception ex)
                 {
@@ -83,6 +81,8 @@ namespace LearningAppNetCoreApi.Services.Jobs
                 }
             }
             _logger.LogInformation("Learning reminder job finished.");
+
+            return $"Successfully sent {successCount} out of {usersToNotify.Count} reminders.";
         }
     }
 }
