@@ -205,6 +205,7 @@ namespace LearningAppNetCoreApi.Services
             }
 
             user.TotalPathsStarted++;
+            user.PathsGeneratedThisMonth++;
 
             var newUserPath = new UserPath
             {
@@ -213,6 +214,7 @@ namespace LearningAppNetCoreApi.Services
             };
 
             _context.UserPaths.Add(newUserPath);
+
             await _context.SaveChangesAsync();
 
             var pathTemplate = await _context.PathTemplates
@@ -406,13 +408,11 @@ namespace LearningAppNetCoreApi.Services
                         });
                     }
                 }
+
                 newPathTemplate.PathItems.Add(pathItemTemplate);
             }
 
             _context.PathTemplates.Add(newPathTemplate);
-
-            // --- 3. Increment the user's usage counter upon success ---
-            user.PathsGeneratedThisMonth++;
 
             await _context.SaveChangesAsync(); // This saves both the new path and the user's updated usage count
 
