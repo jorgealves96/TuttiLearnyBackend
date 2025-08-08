@@ -11,10 +11,12 @@ namespace LearningAppNetCoreApi.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly ILogger<PathsController> _logger;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, ILogger<PathsController> logger)
         {
             _userService = userService;
+            _logger = logger;
         }
 
         [HttpGet("me/subscription-status")]
@@ -22,6 +24,8 @@ namespace LearningAppNetCoreApi.Controllers
         {
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (firebaseUid == null) return Unauthorized();
+
+            _logger.LogInformation("GetPathById endpoint was called for path ID: {PathId}", firebaseUid);
 
             var status = await _userService.GetUserSubscriptionStatusAsync(firebaseUid);
             if (status == null) return NotFound();
