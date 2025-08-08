@@ -88,6 +88,7 @@ builder.Services.AddScoped<IProfileService, ProfileService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IJobsService, JobsService>();
 
 // --- Add Jobs ---
 builder.Services.AddTransient<SendLearningRemindersJob>();
