@@ -16,12 +16,13 @@ namespace LearningAppNetCoreApi.Services
         private readonly SubscriptionValidationJob _subscriptionValidationJob;
         private readonly ResetMonthlyUsageJob _resetMonthlyUsageJob;
 
-        public JobsService(SendLearningRemindersJob _sendLearningRemindersJob,
+        public JobsService(SendLearningRemindersJob sendLearningRemindersJob,
         SubscriptionValidationJob subscriptionValidationJob,
             ResetMonthlyUsageJob resetMonthlyUsageJob)
         {
             _subscriptionValidationJob = subscriptionValidationJob;
             _resetMonthlyUsageJob = resetMonthlyUsageJob;
+            _sendLearningRemindersJob = sendLearningRemindersJob;
         }
 
         public Task<string> RunSendRemindersJobAsync()
