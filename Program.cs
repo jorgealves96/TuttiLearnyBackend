@@ -2,6 +2,7 @@ using FirebaseAdmin;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.SecretManager.V1;
 using LearningAppNetCoreApi;
+using LearningAppNetCoreApi.Middleware;
 using LearningAppNetCoreApi.Services;
 using LearningAppNetCoreApi.Services.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -98,6 +99,20 @@ builder.Services.AddHttpClient();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+if (builder.Environment.IsProduction())
+{
+    builder.Logging.ClearProviders(); // Clear existing providers
+    builder.Logging.AddJsonConsole(options =>
+    {
+        // These options format the JSON nicely for Google Cloud Logging
+        options.JsonWriterOptions = new System.Text.Json.JsonWriterOptions
+        {
+            Indented = false
+        };
+        options.IncludeScopes = true; // This is the crucial part that includes your UID
+    });
+}
+
 var app = builder.Build();
 
 // --- Apply Database Migrations on Startup ---
@@ -117,6 +132,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (builder.Environment.IsProduction())
+{
+    app.UseMiddleware<StructuredLoggingMiddleware>();
+}
+
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok("Healthy"));
 
