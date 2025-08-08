@@ -188,65 +188,53 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<LearningPathResponseDto> AssignPathToUserAsync(int pathTemplateId, string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            var pathLimit = GetPathGenerationLimitForTier(user.Tier);
-            if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
+            try
             {
-                throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid)
+                    ?? throw new InvalidOperationException("User not found.");
+
+                ResetMonthlyUsageCounters(user);
+
+                var pathLimit = GetPathGenerationLimitForTier(user.Tier);
+                if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
+                {
+                    throw new UsageLimitExceededException("You have reached your monthly limit for starting new paths.");
+                }
+
+                var existingUserPath = await _context.UserPaths
+                    .FirstOrDefaultAsync(up => up.UserId == user.Id && up.PathTemplateId == pathTemplateId);
+
+                if (existingUserPath != null)
+                {
+                    await transaction.CommitAsync();
+                    return await GetPathByIdAsync(existingUserPath.Id, firebaseUid);
+                }
+
+                // --- Create UserPath and Increment Counters ---
+                user.TotalPathsStarted++;
+                user.PathsGeneratedThisMonth++;
+
+                var newUserPath = new UserPath
+                {
+                    UserId = user.Id,
+                    PathTemplateId = pathTemplateId
+                };
+                _context.UserPaths.Add(newUserPath);
+
+                // This saves the new UserPath and the updated counters together.
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Build and return the DTO for the newly assigned path.
+                return await GetPathByIdAsync(newUserPath.Id, firebaseUid);
             }
-
-            var existingUserPath = await _context.UserPaths
-                .FirstOrDefaultAsync(up => up.UserId == user.Id && up.PathTemplateId == pathTemplateId);
-
-            if (existingUserPath != null)
+            catch (Exception)
             {
-                return await GetPathByIdAsync(existingUserPath.Id, firebaseUid);
+                await transaction.RollbackAsync();
+                throw;
             }
-
-            user.TotalPathsStarted++;
-            user.PathsGeneratedThisMonth++;
-
-            var newUserPath = new UserPath
-            {
-                UserId = user.Id,
-                PathTemplateId = pathTemplateId
-            };
-
-            _context.UserPaths.Add(newUserPath);
-
-            await _context.SaveChangesAsync();
-
-            var pathTemplate = await _context.PathTemplates
-                .AsNoTracking()
-                .Include(pt => pt.PathItems)
-                .ThenInclude(pit => pit.Resources)
-                .FirstAsync(pt => pt.Id == pathTemplateId);
-
-            return new LearningPathResponseDto
-            {
-                UserPathId = newUserPath.Id,
-                Title = pathTemplate.Title,
-                Description = pathTemplate.Description,
-                CreatedAt = newUserPath.StartedAt,
-                PathItems = pathTemplate.PathItems
-                    .OrderBy(pi => pi.Order)
-                    .Select(pi => new PathItemResponseDto
-                    {
-                        Id = pi.Id,
-                        Title = pi.Title,
-                        Order = pi.Order,
-                        IsCompleted = false, // Always false for a new path
-                        Resources = pi.Resources.Select(r => new ResourceResponseDto
-                        {
-                            Id = r.Id,
-                            Title = r.Title,
-                            Url = r.Url,
-                            Type = r.Type.ToString(),
-                            IsCompleted = false
-                        }).ToList()
-                    }).ToList()
-            };
         }
 
         public async Task<PathReportDto?> GetUserReportForPathAsync(int pathTemplateId, string firebaseUid)
@@ -324,99 +312,146 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<LearningPathResponseDto> GenerateNewPathAsync(string prompt, string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
+            // Use a transaction to ensure that everything either succeeds or fails together.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
-            ResetMonthlyUsageCounters(user);
-
-            var pathLimit = GetPathGenerationLimitForTier(user.Tier);
-            if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
+            try
             {
-                throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
-            }
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid)
+                    ?? throw new InvalidOperationException("User not found.");
 
-            var geminiResponse = await GetLearningPathFromGemini(prompt);
+                ResetMonthlyUsageCounters(user);
 
-            if (!string.IsNullOrEmpty(geminiResponse.Error))
-            {
-                throw new InvalidOperationException(geminiResponse.Error);
-            }
-
-            var newPathTemplate = new PathTemplate
-            {
-                Title = geminiResponse.Title,
-                Description = geminiResponse.Description,
-                GeneratedFromPrompt = prompt,
-                Category = Enum.Parse<PathCategory>(geminiResponse.Category, true),
-                PathItems = new List<PathItemTemplate>()
-            };
-
-            int order = 1;
-            foreach (var itemDto in geminiResponse.Items ?? new List<GeminiPathItemDto>())
-            {
-                var pathItemTemplate = new PathItemTemplate
+                var pathLimit = GetPathGenerationLimitForTier(user.Tier);
+                if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
                 {
-                    Title = itemDto.Title,
-                    Order = order++,
-                    Resources = new List<ResourceTemplate>()
-                };
-
-                var uniqueResources = itemDto.Resources
-                    .GroupBy(r => r.Title)
-                    .Select(g => g.First())
-                    .ToList();
-
-                foreach (var resourceDto in uniqueResources)
-                {
-                    if (string.IsNullOrEmpty(resourceDto.SearchQuery)) continue;
-
-                    var resourceType = Enum.Parse<ItemType>(resourceDto.Type, true);
-                    string? resourceUrl = null;
-
-                    // Prioritize the search query's intent over the AI's declared type.
-                    if (resourceDto.SearchQuery.ToLower().Contains("youtube") ||
-                        resourceDto.SearchQuery.ToLower().Contains("video") ||
-                        resourceType == ItemType.Video)
-                    {
-                        resourceUrl = await SearchForYouTubeVideoAsync(resourceDto.SearchQuery);
-                        // Correct the type if the AI made a mistake.
-                        resourceType = ItemType.Video;
-                    }
-                    else
-                    {
-                        resourceUrl = await SearchForUrlAsync(resourceDto.SearchQuery);
-                    }
-
-                    // Check for the special quota exceeded string.
-                    if (resourceUrl == "QUOTA_EXCEEDED")
-                    {
-                        // Add the resource but with a modified title and an empty URL.
-                        pathItemTemplate.Resources.Add(new ResourceTemplate
-                        {
-                            Title = $"{resourceDto.Title} (Video temporarily unavailable)",
-                            Type = resourceType,
-                            Url = "" // Empty URL
-                        });
-                    }
-                    else if (!string.IsNullOrEmpty(resourceUrl))
-                    {
-                        // This is the normal success case.
-                        pathItemTemplate.Resources.Add(new ResourceTemplate
-                        {
-                            Title = resourceDto.Title,
-                            Type = resourceType,
-                            Url = resourceUrl
-                        });
-                    }
+                    throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
                 }
 
-                newPathTemplate.PathItems.Add(pathItemTemplate);
+                var geminiResponse = await GetLearningPathFromGemini(prompt);
+
+                if (!string.IsNullOrEmpty(geminiResponse.Error))
+                {
+                    throw new InvalidOperationException(geminiResponse.Error);
+                }
+
+                var newPathTemplate = new PathTemplate
+                {
+                    Title = geminiResponse.Title,
+                    Description = geminiResponse.Description,
+                    GeneratedFromPrompt = prompt,
+                    Category = Enum.Parse<PathCategory>(geminiResponse.Category, true),
+                    PathItems = new List<PathItemTemplate>()
+                };
+
+                int order = 1;
+                foreach (var itemDto in geminiResponse.Items ?? new List<GeminiPathItemDto>())
+                {
+                    var pathItemTemplate = new PathItemTemplate
+                    {
+                        Title = itemDto.Title,
+                        Order = order++,
+                        Resources = new List<ResourceTemplate>()
+                    };
+
+                    var uniqueResources = itemDto.Resources
+                        .GroupBy(r => r.Title)
+                        .Select(g => g.First())
+                        .ToList();
+
+                    foreach (var resourceDto in uniqueResources)
+                    {
+                        if (string.IsNullOrEmpty(resourceDto.SearchQuery)) continue;
+
+                        var resourceType = Enum.Parse<ItemType>(resourceDto.Type, true);
+                        string? resourceUrl = null;
+
+                        if (resourceDto.SearchQuery.ToLower().Contains("youtube") ||
+                            resourceDto.SearchQuery.ToLower().Contains("video") ||
+                            resourceType == ItemType.Video)
+                        {
+                            resourceUrl = await SearchForYouTubeVideoAsync(resourceDto.SearchQuery);
+                            resourceType = ItemType.Video;
+                        }
+                        else
+                        {
+                            resourceUrl = await SearchForUrlAsync(resourceDto.SearchQuery);
+                        }
+
+                        if (resourceUrl == "QUOTA_EXCEEDED")
+                        {
+                            pathItemTemplate.Resources.Add(new ResourceTemplate
+                            {
+                                Title = $"{resourceDto.Title} (Video temporarily unavailable)",
+                                Type = resourceType,
+                                Url = ""
+                            });
+                        }
+                        else if (!string.IsNullOrEmpty(resourceUrl))
+                        {
+                            pathItemTemplate.Resources.Add(new ResourceTemplate
+                            {
+                                Title = resourceDto.Title,
+                                Type = resourceType,
+                                Url = resourceUrl
+                            });
+                        }
+                    }
+                    newPathTemplate.PathItems.Add(pathItemTemplate);
+                }
+
+                _context.PathTemplates.Add(newPathTemplate);
+
+                // Increment counters and create the user's path instance
+                user.TotalPathsStarted++;
+                user.PathsGeneratedThisMonth++;
+
+                var newUserPath = new UserPath
+                {
+                    User = user,
+                    PathTemplate = newPathTemplate
+                };
+                _context.UserPaths.Add(newUserPath);
+
+                // This single save commits everything inside the transaction
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Build the DTO to return to the client
+                return new LearningPathResponseDto
+                {
+                    UserPathId = newUserPath.Id,
+                    PathTemplateId = newPathTemplate.Id,
+                    HasBeenRated = false,
+                    HasOpenReport = false,
+                    Title = newPathTemplate.Title,
+                    Description = newPathTemplate.Description,
+                    CreatedAt = newUserPath.StartedAt,
+                    PathItems = newPathTemplate.PathItems
+                        .OrderBy(pi => pi.Order)
+                        .Select(pi => new PathItemResponseDto
+                        {
+                            Id = pi.Id,
+                            Title = pi.Title,
+                            Order = pi.Order,
+                            IsCompleted = false,
+                            Resources = pi.Resources.Select(r => new ResourceResponseDto
+                            {
+                                Id = r.Id,
+                                Title = r.Title,
+                                Url = r.Url,
+                                Type = r.Type.ToString(),
+                                IsCompleted = false
+                            }).ToList()
+                        }).ToList()
+                };
             }
-
-            _context.PathTemplates.Add(newPathTemplate);
-
-            await _context.SaveChangesAsync(); // This saves both the new path and the user's updated usage count
-
-            return await AssignPathToUserAsync(newPathTemplate.Id, firebaseUid);
+            catch (Exception)
+            {
+                // If any part of the process fails, roll back all database changes.
+                await transaction.RollbackAsync();
+                throw; // Rethrow the exception so the controller can handle it.
+            }
         }
 
         public async Task<List<PathItemResponseDto>> ExtendLearningPathAsync(int userPathId, string firebaseUid)
