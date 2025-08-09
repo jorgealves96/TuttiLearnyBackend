@@ -235,8 +235,39 @@ namespace LearningAppNetCoreApi.Services
 
                 _logger.LogInformation("User {FirebaseUid} has been assigned path {PathTemplateId}", firebaseUid, pathTemplateId);
 
-                // Build and return the DTO for the newly assigned path.
-                return await GetPathByIdAsync(newUserPath.Id, firebaseUid);
+                var pathTemplate = await _context.PathTemplates
+                    .AsNoTracking()
+                    .Include(pt => pt.PathItems)
+                        .ThenInclude(pit => pit.Resources)
+                    .FirstAsync(pt => pt.Id == pathTemplateId);
+
+                return new LearningPathResponseDto
+                {
+                    UserPathId = newUserPath.Id,
+                    PathTemplateId = pathTemplate.Id,
+                    HasBeenRated = false, // A new path has not been rated
+                    HasOpenReport = false, // A new path has no open reports
+                    Title = pathTemplate.Title,
+                    Description = pathTemplate.Description,
+                    CreatedAt = newUserPath.StartedAt,
+                    PathItems = pathTemplate.PathItems
+                        .OrderBy(pi => pi.Order)
+                        .Select(pi => new PathItemResponseDto
+                        {
+                            Id = pi.Id,
+                            Title = pi.Title,
+                            Order = pi.Order,
+                            IsCompleted = false, // Always false for a new path
+                            Resources = pi.Resources.Select(r => new ResourceResponseDto
+                            {
+                                Id = r.Id,
+                                Title = r.Title,
+                                Url = r.Url,
+                                Type = r.Type.ToString(),
+                                IsCompleted = false
+                            }).ToList()
+                        }).ToList()
+                };
             }
             catch (Exception)
             {

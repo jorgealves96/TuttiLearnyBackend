@@ -5,6 +5,7 @@ using Bogus;
 using FirebaseAdmin.Auth;
 using LearningAppNetCoreApi.Dtos;
 using LearningAppNetCoreApi.Constants;
+using Npgsql;
 
 namespace LearningAppNetCoreApi.Services
 {
@@ -28,9 +29,16 @@ namespace LearningAppNetCoreApi.Services
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user != null)
+            {
+                // If user exists, just update the login date and return.
+                user.LastLoginDate = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                return user;
+            }
 
-            // Create user in database
-            if (user == null)
+            // If user is null, attempt to create them.
+            try
             {
                 var userName = userPrincipal.FindFirst("name")?.Value;
                 var userEmail = userPrincipal.FindFirst(ClaimTypes.Email)?.Value;
@@ -39,33 +47,29 @@ namespace LearningAppNetCoreApi.Services
                 {
                     var faker = new Faker();
                     userName = $"{Capitalize(faker.Hacker.Adjective())} {Capitalize(faker.Lorem.Word())}";
-
-                    var args = new UserRecordArgs
-                    {
-                        Uid = firebaseUid,
-                        DisplayName = userName
-                    };
+                    var args = new UserRecordArgs { Uid = firebaseUid, DisplayName = userName };
                     await FirebaseAuth.DefaultInstance.UpdateUserAsync(args);
                 }
 
-                user = new User
+                var newUser = new User
                 {
                     FirebaseUid = firebaseUid,
                     Email = userEmail ?? "Not provided",
                     Name = userName
                 };
 
-                _context.Users.Add(user);
+                _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("New user: {FirebaseUid}", firebaseUid);
+                _logger.LogInformation("New user created: {FirebaseUid}", firebaseUid);
+                return newUser;
             }
-            else
+            catch (DbUpdateException ex) when (ex.InnerException is PostgresException pgEx && pgEx.SqlState == "23505")
             {
-                user.LastLoginDate = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
+                // This specific error code (23505) means a unique constraint was violated.
+                // This handles race conditions: another request created the user in the meantime.
+                _logger.LogWarning("Race condition detected for user {FirebaseUid}. Re-fetching user.", firebaseUid);
+                return await _context.Users.FirstAsync(u => u.FirebaseUid == firebaseUid);
             }
-
-            return user;
         }
 
         public async Task<User?> GetUserByFirebaseUidAsync(string firebaseUid)

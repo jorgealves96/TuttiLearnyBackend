@@ -1,5 +1,8 @@
-﻿namespace LearningAppNetCoreApi.Models
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace LearningAppNetCoreApi.Models
 {
+    [Index(nameof(FirebaseUid), IsUnique = true)]
     public class User
     {
         public int Id { get; set; }

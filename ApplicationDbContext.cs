@@ -29,6 +29,9 @@ namespace LearningAppNetCoreApi
         public DbSet<QuizFeedback> QuizFeedbacks { get; set; }
         public DbSet<UserQuizAnswer> UserQuizAnswers { get; set; }
 
+        // --- Wait List stuff ---
+        public DbSet<WaitlistEntry> WaitlistEntries { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
