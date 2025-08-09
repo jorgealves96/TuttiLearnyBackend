@@ -233,6 +233,8 @@ namespace LearningAppNetCoreApi.Services
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                _logger.LogInformation("User {FirebaseUid} has been assigned path {PathTemplateId}", firebaseUid, pathTemplateId);
+
                 // Build and return the DTO for the newly assigned path.
                 return await GetPathByIdAsync(newUserPath.Id, firebaseUid);
             }
@@ -425,6 +427,8 @@ namespace LearningAppNetCoreApi.Services
                 // This single save commits everything inside the transaction
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                _logger.LogInformation("User {FirebaseUid} has been assigned path {PathTemplateId}", firebaseUid, newPathTemplate.Id);
 
                 // Build the DTO to return to the client
                 return new LearningPathResponseDto

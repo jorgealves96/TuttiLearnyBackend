@@ -72,6 +72,8 @@ namespace LearningAppNetCoreApi.Services
 
             await _context.SaveChangesAsync();
 
+            _logger.LogInformation("User {FirebaseUid} has created quiz {QuizTemplateId}", firebaseUid, newQuizTemplate.Id);
+
             return MapQuizToDto(newQuizTemplate);
         }
 
