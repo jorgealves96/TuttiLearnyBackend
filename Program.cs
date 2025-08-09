@@ -89,6 +89,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IQuizService, QuizService>();
 builder.Services.AddScoped<IJobsService, JobsService>();
+builder.Services.AddScoped<IWaitlistService, WaitlistService>(); // TODO: Remove after app is not on waitlist anymore
 
 // --- Add Jobs ---
 builder.Services.AddTransient<SendLearningRemindersJob>();
@@ -114,6 +115,20 @@ if (builder.Environment.IsProduction())
     });
 }
 
+var webAppOrigin = "AllowWebApp";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: webAppOrigin,
+        policy =>
+        {
+            // This only allows requests from your live website.
+            policy.WithOrigins("https://tuttilearni.com/")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
 var app = builder.Build();
 
 // --- Apply Database Migrations on Startup ---
@@ -134,6 +149,11 @@ if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.UseRouting();
+
+app.UseCors(webAppOrigin);
+
 app.UseAuthentication();
 app.UseAuthorization();
 
