@@ -1,5 +1,6 @@
 ﻿using LearningAppNetCoreApi.Dtos;
 using LearningAppNetCoreApi.Services;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 
 // TODO: Remove after app is not on waitlist anymore
@@ -8,6 +9,7 @@ namespace LearningAppNetCoreApi.Controllers
 {
     [ApiController]
     [Route("api/waitlist")]
+    [EnableCors("AllowWebApp")]
     public class WaitlistController : ControllerBase
     {
         private readonly IWaitlistService _waitlistService;

@@ -150,7 +150,7 @@ if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseCors(webAppOrigin);
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
