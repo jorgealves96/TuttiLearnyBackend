@@ -14,9 +14,9 @@ namespace LearningAppNetCoreApi.Services
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IWebHostEnvironment _env;
-        private readonly ILogger _logger;
+        private readonly ILogger<QuizService> _logger;
 
-        public QuizService(ApplicationDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory, IWebHostEnvironment env, ILogger logger)
+        public QuizService(ApplicationDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory, IWebHostEnvironment env, ILogger<QuizService> logger)
         {
             _context = context;
             _configuration = configuration;

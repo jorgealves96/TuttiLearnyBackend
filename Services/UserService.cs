@@ -11,9 +11,9 @@ namespace LearningAppNetCoreApi.Services
     public class UserService : IUserService
     {
         private readonly ApplicationDbContext _context;
-        private readonly ILogger _logger;
+        private readonly ILogger<UserService> _logger;
 
-        public UserService(ApplicationDbContext context, ILogger logger)
+        public UserService(ApplicationDbContext context, ILogger<UserService> logger)
         {
             _context = context;
             _logger = logger;
