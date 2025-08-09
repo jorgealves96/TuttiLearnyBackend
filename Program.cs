@@ -152,6 +152,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseRouting();
 
+app.MapGet("/health", () => Results.Ok("Healthy"));
+
+app.UseCors(webAppOrigin);
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -161,7 +165,6 @@ if (builder.Environment.IsProduction())
 }
 
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok("Healthy"));
 
 // --- Run the Application ---
 if (builder.Environment.IsProduction())
