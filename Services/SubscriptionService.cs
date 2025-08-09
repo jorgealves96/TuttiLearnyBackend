@@ -5,10 +5,12 @@ namespace LearningAppNetCoreApi.Services
     public class SubscriptionService : ISubscriptionService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<LearningPathService> _logger;
 
-        public SubscriptionService(ApplicationDbContext context)
+        public SubscriptionService(ApplicationDbContext context, ILogger<LearningPathService> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<User> UpdateUserSubscriptionAsync(int userId, SubscriptionTier newTier, bool isYearly)
@@ -36,6 +38,7 @@ namespace LearningAppNetCoreApi.Services
             }
 
             await _context.SaveChangesAsync();
+            _logger.LogError("User {FirebaseUid} updated his subscription to {Tier}", user.FirebaseUid, newTier);
             return user;
         }
     }

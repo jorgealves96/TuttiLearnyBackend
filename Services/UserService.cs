@@ -11,10 +11,12 @@ namespace LearningAppNetCoreApi.Services
     public class UserService : IUserService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger _logger;
 
-        public UserService(ApplicationDbContext context)
+        public UserService(ApplicationDbContext context, ILogger logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         public async Task<User> SyncUserAsync(ClaimsPrincipal userPrincipal)
@@ -55,6 +57,7 @@ namespace LearningAppNetCoreApi.Services
 
                 _context.Users.Add(user);
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("New user: {FirebaseUid}", firebaseUid);
             }
             else
             {

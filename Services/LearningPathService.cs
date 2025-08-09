@@ -15,17 +15,20 @@ namespace LearningAppNetCoreApi.Services
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger<LearningPathService> _logger;
 
         public LearningPathService(
             ApplicationDbContext context,
             IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
-            IWebHostEnvironment env) // Inject the environment service
+            IWebHostEnvironment env,
+            ILogger<LearningPathService> logger)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
             _configuration = configuration;
             _env = env;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<MyPathSummaryDto>> GetUserPathsAsync(string firebaseUid)
@@ -39,6 +42,7 @@ namespace LearningAppNetCoreApi.Services
                     .ThenInclude(pt => pt.PathItems)
                     .ThenInclude(pit => pit.Resources)
                 .OrderByDescending(up => up.StartedAt)
+                .AsSplitQuery()
                 .ToListAsync();
 
             var resourceProgress = await _context.UserResourceProgress
@@ -72,6 +76,7 @@ namespace LearningAppNetCoreApi.Services
                 .Include(up => up.PathTemplate)
                     .ThenInclude(pt => pt.PathItems)
                     .ThenInclude(pit => pit.Resources)
+                    .AsSplitQuery()
                 .FirstOrDefaultAsync(up => up.Id == userPathId && up.UserId == user.Id);
 
             if (userPath == null) return null;
@@ -200,6 +205,7 @@ namespace LearningAppNetCoreApi.Services
                 var pathLimit = GetPathGenerationLimitForTier(user.Tier);
                 if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
                 {
+                    _logger.LogInformation("User {FirebaseUid} has reached their monthly limit for generating paths", firebaseUid);
                     throw new UsageLimitExceededException("You have reached your monthly limit for starting new paths.");
                 }
 
@@ -325,8 +331,11 @@ namespace LearningAppNetCoreApi.Services
                 var pathLimit = GetPathGenerationLimitForTier(user.Tier);
                 if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
                 {
+                    _logger.LogInformation("User {FirebaseUid} has reached their monthly limit for generating paths", firebaseUid);
                     throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
                 }
+
+                _logger.LogInformation($"User {firebaseUid} calling Gemini API for prompt: {prompt}");
 
                 var geminiResponse = await GetLearningPathFromGemini(prompt);
 
@@ -446,8 +455,9 @@ namespace LearningAppNetCoreApi.Services
                         }).ToList()
                 };
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "User {FirebaseUid} failed to call Gemini API. Prompt: {Prompt}", firebaseUid, prompt);
                 // If any part of the process fails, roll back all database changes.
                 await transaction.RollbackAsync();
                 throw; // Rethrow the exception so the controller can handle it.
@@ -463,6 +473,7 @@ namespace LearningAppNetCoreApi.Services
             var extensionLimit = GetPathExtensionLimitForTier(user.Tier);
             if (extensionLimit.HasValue && user.PathsExtendedThisMonth >= extensionLimit.Value)
             {
+                _logger.LogInformation("User {FirebaseUid} has reached their monthly limit for extending paths", firebaseUid);
                 throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Please upgrade to continue.");
             }
 
@@ -470,6 +481,7 @@ namespace LearningAppNetCoreApi.Services
                 .Include(up => up.PathTemplate)
                     .ThenInclude(pt => pt.PathItems)
                     .ThenInclude(pit => pit.Resources)
+                    .AsSplitQuery()
                 .FirstOrDefaultAsync(up => up.Id == userPathId && up.UserId == user.Id)
                 ?? throw new InvalidOperationException("Learning path not found for this user.");
 

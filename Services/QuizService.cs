@@ -14,13 +14,15 @@ namespace LearningAppNetCoreApi.Services
         private readonly IConfiguration _configuration;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IWebHostEnvironment _env;
+        private readonly ILogger _logger;
 
-        public QuizService(ApplicationDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory, Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
+        public QuizService(ApplicationDbContext context, IConfiguration configuration, IHttpClientFactory httpClientFactory, IWebHostEnvironment env, ILogger logger)
         {
             _context = context;
             _configuration = configuration;
             _httpClientFactory = httpClientFactory;
             _env = env;
+            _logger = logger;
         }
 
         public async Task<QuizResponseDto> CreateQuizAsync(int pathTemplateId, string firebaseUid)
@@ -33,6 +35,7 @@ namespace LearningAppNetCoreApi.Services
 
             if (quizLimit.HasValue && user.QuizzesCreatedThisMonth >= quizLimit.Value)
             {
+                _logger.LogInformation("User {FirebaseUid} reached their quiz creation limit", firebaseUid);
                 throw new ApiQuotaExceededException("Quiz creation limit reached for this month.");
             }
 

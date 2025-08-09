@@ -25,8 +25,6 @@ namespace LearningAppNetCoreApi.Controllers
             var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (firebaseUid == null) return Unauthorized();
 
-            _logger.LogInformation("GetPathById endpoint was called for path ID: {PathId}", firebaseUid);
-
             var status = await _userService.GetUserSubscriptionStatusAsync(firebaseUid);
             if (status == null) return NotFound();
 

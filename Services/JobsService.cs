@@ -2,14 +2,6 @@
 
 namespace LearningAppNetCoreApi.Services
 {
-
-    public interface IJobsService
-    {
-        Task<string> RunSubscriptionValidationJobAsync();
-        Task<string> RunResetMonthlyUsageJobAsync();
-        Task<string> RunSendRemindersJobAsync();
-    }
-
     public class JobsService : IJobsService
     {
         private readonly SendLearningRemindersJob _sendLearningRemindersJob;

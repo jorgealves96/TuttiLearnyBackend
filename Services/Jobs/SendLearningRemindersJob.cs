@@ -72,12 +72,12 @@ namespace LearningAppNetCoreApi.Services.Jobs
                 try
                 {
                     await FirebaseMessaging.DefaultInstance.SendAsync(message);
-                    _logger.LogInformation($"Sent reminder to user {user.Id}");
+                    _logger.LogInformation($"Sent reminder to user {user.FirebaseUid}");
                     successCount++;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Failed to send notification to user {user.Id}: {ex.Message}");
+                    _logger.LogError($"Failed to send notification to user {user.FirebaseUid}: {ex.Message}");
                 }
             }
             _logger.LogInformation("Learning reminder job finished.");
