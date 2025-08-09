@@ -123,7 +123,7 @@ builder.Services.AddCors(options =>
         policy =>
         {
             // This only allows requests from your live website.
-            policy.WithOrigins("https://tuttilearni.com/")
+            policy.WithOrigins("https://tuttilearni.com")
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
