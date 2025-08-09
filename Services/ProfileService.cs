@@ -37,6 +37,7 @@ namespace LearningAppNetCoreApi.Services
                 .Include(up => up.PathTemplate)
                     .ThenInclude(pt => pt.PathItems)
                     .ThenInclude(pit => pit.Resources)
+                    .AsSplitQuery()
                 .ToListAsync();
 
             // Get a set of all completed resource IDs for this user for efficient lookup
