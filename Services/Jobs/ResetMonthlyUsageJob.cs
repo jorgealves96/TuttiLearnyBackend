@@ -15,18 +15,34 @@ namespace LearningAppNetCoreApi.Services.Jobs
 
         public async Task<string> ExecuteAsync()
         {
-            _logger.LogInformation("Executing monthly usage reset job for all users...");
+            _logger.LogInformation("Executing daily check for monthly usage resets...");
 
-            // This single command updates all rows in the Users table.
-            // It's much more efficient than fetching every user and updating them individually.
-            var rowsAffected = await _context.Database.ExecuteSqlRawAsync(
-                "UPDATE \"users\" SET \"paths_generated_this_month\" = 0, \"paths_extended_this_month\" = 0, \"quizzes_created_this_month\" = 0"
-            );
+            var oneMonthAgo = DateTime.UtcNow.AddMonths(-1);
 
-            // We don't need to update 'LastUsageResetDate' anymore because the job's
-            // execution time itself serves as the record of when the reset happened.
+            // Find all users whose last reset was more than a month ago
+            var usersToReset = await _context.Users
+                .Where(u => u.LastUsageResetDate <= oneMonthAgo)
+                .ToListAsync();
 
-            var successMessage = $"Monthly usage counters reset successfully for {rowsAffected} users at {DateTime.UtcNow}.";
+            if (usersToReset.Count == 0)
+            {
+                _logger.LogInformation("No users found requiring a usage reset today.");
+                return "No users found requiring a usage reset.";
+            }
+
+            _logger.LogInformation("Found {UserCount} users to reset.", usersToReset.Count);
+
+            foreach (var user in usersToReset)
+            {
+                user.PathsGeneratedThisMonth = 0;
+                user.PathsExtendedThisMonth = 0;
+                user.QuizzesCreatedThisMonth = 0;
+                user.LastUsageResetDate = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            var successMessage = $"Monthly usage counters reset successfully for {usersToReset.Count} users.";
             _logger.LogInformation(successMessage);
             return successMessage;
         }
