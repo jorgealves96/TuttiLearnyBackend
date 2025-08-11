@@ -42,6 +42,7 @@ namespace LearningAppNetCoreApi.Services
             {
                 var userName = userPrincipal.FindFirst("name")?.Value;
                 var userEmail = userPrincipal.FindFirst(ClaimTypes.Email)?.Value;
+                var phoneNumber = userPrincipal.FindFirst("phone_number")?.Value;
 
                 if (string.IsNullOrEmpty(userName))
                 {
@@ -54,8 +55,9 @@ namespace LearningAppNetCoreApi.Services
                 var newUser = new User
                 {
                     FirebaseUid = firebaseUid,
-                    Email = userEmail ?? "Not provided",
-                    Name = userName
+                    Email = userEmail,
+                    Name = userName,
+                    PhoneNumber = phoneNumber
                 };
 
                 _context.Users.Add(newUser);
