@@ -206,7 +206,7 @@ namespace LearningAppNetCoreApi.Services
                 if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
                 {
                     _logger.LogInformation("User {FirebaseUid} has reached their monthly limit for generating paths", firebaseUid);
-                    throw new UsageLimitExceededException("You have reached your monthly limit for starting new paths.");
+                    throw new UsageLimitExceededException("You have reached your monthly limit for starting new paths. Consider upgrading to continue");
                 }
 
                 var existingUserPath = await _context.UserPaths
@@ -365,7 +365,7 @@ namespace LearningAppNetCoreApi.Services
                 if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
                 {
                     _logger.LogInformation("User {FirebaseUid} has reached their monthly limit for generating paths", firebaseUid);
-                    throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Please upgrade to continue.");
+                    throw new UsageLimitExceededException("You have reached your monthly limit for generating new paths. Consider upgrading to continue.");
                 }
 
                 _logger.LogInformation($"User {firebaseUid} calling Gemini API for prompt: {prompt}");
@@ -509,7 +509,7 @@ namespace LearningAppNetCoreApi.Services
             if (extensionLimit.HasValue && user.PathsExtendedThisMonth >= extensionLimit.Value)
             {
                 _logger.LogInformation("User {FirebaseUid} has reached their monthly limit for extending paths", firebaseUid);
-                throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Please upgrade to continue.");
+                throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Consider upgrading to continue.");
             }
 
             var userPath = await _context.UserPaths

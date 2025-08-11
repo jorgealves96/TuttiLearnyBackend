@@ -103,7 +103,8 @@ namespace LearningAppNetCoreApi.Services
                 PathsGeneratedThisMonth = user.PathsGeneratedThisMonth,
                 PathsExtendedThisMonth = user.PathsExtendedThisMonth,
                 SubscriptionExpiryDate = user.SubscriptionExpiryDate,
-                QuizzesCreatedThisMonth = user.QuizzesCreatedThisMonth
+                QuizzesCreatedThisMonth = user.QuizzesCreatedThisMonth,
+                LastUsageResetDate = user.LastUsageResetDate
             };
 
             if (user.SubscriptionExpiryDate.HasValue)

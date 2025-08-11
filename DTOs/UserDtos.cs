@@ -21,6 +21,7 @@ namespace LearningAppNetCoreApi.Dtos
         public int? QuizCreationLimit { get; set; }
         public DateTime? SubscriptionExpiryDate { get; set; }
         public int? DaysLeftInSubscription { get; set; }
+        public DateTime LastUsageResetDate { get; set; }
     }
 
     public class UpdateFcmTokenDto
