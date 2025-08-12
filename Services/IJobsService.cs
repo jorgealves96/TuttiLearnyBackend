@@ -5,5 +5,6 @@
         Task<string> RunSubscriptionValidationJobAsync();
         Task<string> RunResetMonthlyUsageJobAsync();
         Task<string> RunSendRemindersJobAsync();
+        Task<string> RunPermanentUserDeletionJobAsync();
     }
 }

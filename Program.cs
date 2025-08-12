@@ -92,9 +92,10 @@ builder.Services.AddScoped<IJobsService, JobsService>();
 builder.Services.AddScoped<IWaitlistService, WaitlistService>(); // TODO: Remove after app is not on waitlist anymore
 
 // --- Add Jobs ---
-builder.Services.AddTransient<SendLearningRemindersJob>();
-builder.Services.AddTransient<SubscriptionValidationJob>();
-builder.Services.AddTransient<ResetMonthlyUsageJob>();
+builder.Services.AddScoped<SendLearningRemindersJob>();
+builder.Services.AddScoped<SubscriptionValidationJob>();
+builder.Services.AddScoped<ResetMonthlyUsageJob>();
+builder.Services.AddScoped<PermanentUserDeletionJob>();
 
 builder.Services.AddControllers();
 builder.Services.AddHttpClient();

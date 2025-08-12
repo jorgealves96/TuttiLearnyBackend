@@ -7,14 +7,17 @@ namespace LearningAppNetCoreApi.Services
         private readonly SendLearningRemindersJob _sendLearningRemindersJob;
         private readonly SubscriptionValidationJob _subscriptionValidationJob;
         private readonly ResetMonthlyUsageJob _resetMonthlyUsageJob;
+        private readonly PermanentUserDeletionJob _permanentUserDeletionJob;
 
         public JobsService(SendLearningRemindersJob sendLearningRemindersJob,
         SubscriptionValidationJob subscriptionValidationJob,
-            ResetMonthlyUsageJob resetMonthlyUsageJob)
+            ResetMonthlyUsageJob resetMonthlyUsageJob,
+            PermanentUserDeletionJob permanentUserDeletionJob)
         {
             _subscriptionValidationJob = subscriptionValidationJob;
             _resetMonthlyUsageJob = resetMonthlyUsageJob;
             _sendLearningRemindersJob = sendLearningRemindersJob;
+            _permanentUserDeletionJob = permanentUserDeletionJob;
         }
 
         public Task<string> RunSendRemindersJobAsync()
@@ -30,6 +33,11 @@ namespace LearningAppNetCoreApi.Services
         public Task<string> RunResetMonthlyUsageJobAsync()
         {
             return _resetMonthlyUsageJob.ExecuteAsync();
+        }
+
+        public Task<string> RunPermanentUserDeletionJobAsync()
+        {
+            return _permanentUserDeletionJob.ExecuteAsync();
         }
     }
 }

@@ -34,6 +34,8 @@ namespace LearningAppNetCoreApi.Models
         public string? FcmToken { get; set; }
         public DateTime LastLoginDate { get; set; } = DateTime.UtcNow;
         public bool NotificationsEnabled { get; set; } = true;
+        public bool IsDeleted { get; set; } = false;
+        public DateTime? DeletedAt { get; set; }
     }
 
     public enum SubscriptionTier

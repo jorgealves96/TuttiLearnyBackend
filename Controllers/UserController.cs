@@ -1,4 +1,5 @@
 ﻿using LearningAppNetCoreApi.Dtos;
+using LearningAppNetCoreApi.Exceptions;
 using LearningAppNetCoreApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -35,14 +36,26 @@ namespace LearningAppNetCoreApi.Controllers
         [HttpPost("sync")]
         public async Task<IActionResult> SyncUser()
         {
-            // The User object here is the ClaimsPrincipal from the validated token
-            var user = await _userService.SyncUserAsync(User);
-            if (user == null)
+            try
             {
-                return Unauthorized();
+                var user = await _userService.SyncUserAsync(User);
+                if (user == null)
+                {
+                    return Unauthorized();
+                }
+
+                return Ok(new { message = "User synchronized successfully." });
             }
-            // We can just return Ok, the main purpose is to ensure the user exists in the DB.
-            return Ok(new { message = "User synchronized successfully." });
+            catch (AccountInCooldownException ex)
+            {
+                // Return a 409 Conflict status with a clear error message
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unexpected error occurred during user sync.");
+                return StatusCode(500, new { message = "An internal server error occurred." });
+            }
         }
 
         [Authorize]
@@ -93,6 +106,21 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [Authorize]
+        [HttpPost("restore")]
+        public async Task<IActionResult> RestoreUser()
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid)) return Unauthorized();
+
+            var success = await _userService.RestoreUserAsync(firebaseUid);
+            if (success)
+            {
+                return Ok(new { message = "Account restored successfully." });
+            }
+            return BadRequest(new { message = "Failed to restore account." });
+        }
+
+        [Authorize]
         [HttpDelete("me")]
         public async Task<IActionResult> DeleteCurrentUser()
         {
@@ -103,7 +131,7 @@ namespace LearningAppNetCoreApi.Controllers
                 return Unauthorized("User UID not found in token.");
             }
 
-            var success = await _userService.DeleteUserAsync(firebaseUid);
+            var success = await _userService.SoftDeleteAccountAsync(firebaseUid);
 
             if (success)
             {
