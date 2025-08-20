@@ -69,30 +69,49 @@ namespace LearningAppNetCoreApi.Services
         public async Task<LearningPathResponseDto> GetPathByIdAsync(int userPathId, string firebaseUid)
         {
             var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
-            if (user == null) return null;
+            if (user == null) return new LearningPathResponseDto();
 
+            // 1. Get the main UserPath object and its associated PathTemplate (the "hub").
             var userPath = await _context.UserPaths
                 .AsNoTracking()
                 .Include(up => up.PathTemplate)
-                    .ThenInclude(pt => pt.PathItems)
-                    .ThenInclude(pit => pit.Resources)
-                    .AsSplitQuery()
                 .FirstOrDefaultAsync(up => up.Id == userPathId && up.UserId == user.Id);
 
-            if (userPath == null) return null;
+            if (userPath == null) return new LearningPathResponseDto();
+
+            // Get the "base" items that belong to the PathTemplate.
+            var basePathItems = await _context.PathItemTemplates
+                .AsNoTracking()
+                .Include(pit => pit.Resources)
+                .Where(pit => pit.PathTemplateId == userPath.PathTemplateId && pit.UserPathId == null)
+                .ToListAsync();
+
+            // Get the user's personal "extension" items.
+            var extensionPathItems = await _context.PathItemTemplates
+                .AsNoTracking()
+                .Include(pit => pit.Resources)
+                .Where(pit => pit.UserPathId == userPathId)
+                .ToListAsync();
+
+            // Combine the two lists and order them correctly.
+            var allPathItems = basePathItems.Concat(extensionPathItems)
+                                            .OrderBy(pi => pi.Order)
+                                            .ToList();
+
+            // Fetch all other necessary data (progress, reports, ratings).
+            var resourceProgress = await _context.UserResourceProgress
+                .Where(urp => urp.UserId == user.Id)
+                .ToDictionaryAsync(urp => urp.ResourceTemplateId);
 
             var hasOpenReport = await _context.PathReports.AnyAsync(r =>
                 r.UserId == user.Id &&
                 r.PathTemplateId == userPath.PathTemplateId &&
                 r.UserAcknowledged == false);
 
-            var resourceProgress = await _context.UserResourceProgress
-                .Where(urp => urp.UserId == user.Id)
-                .ToDictionaryAsync(urp => urp.ResourceTemplateId);
-
             var hasRated = await _context.PathTemplateRatings
                 .AnyAsync(r => r.PathTemplateId == userPath.PathTemplateId && r.FirebaseUid == firebaseUid);
 
+            // Build and return the final DTO.
             return new LearningPathResponseDto
             {
                 UserPathId = userPath.Id,
@@ -102,23 +121,21 @@ namespace LearningAppNetCoreApi.Services
                 Title = userPath.PathTemplate.Title,
                 Description = userPath.PathTemplate.Description,
                 CreatedAt = userPath.StartedAt,
-                PathItems = userPath.PathTemplate.PathItems
-                    .OrderBy(pi => pi.Order)
-                    .Select(pi => new PathItemResponseDto
+                PathItems = allPathItems.Select(pi => new PathItemResponseDto
+                {
+                    Id = pi.Id,
+                    Title = pi.Title,
+                    Order = pi.Order,
+                    IsCompleted = pi.Resources.Any() && pi.Resources.All(r => resourceProgress.ContainsKey(r.Id) && resourceProgress[r.Id].IsCompleted),
+                    Resources = pi.Resources.Select(r => new ResourceResponseDto
                     {
-                        Id = pi.Id,
-                        Title = pi.Title,
-                        Order = pi.Order,
-                        IsCompleted = pi.Resources.Any() && pi.Resources.All(r => resourceProgress.ContainsKey(r.Id) && resourceProgress[r.Id].IsCompleted),
-                        Resources = pi.Resources.Select(r => new ResourceResponseDto
-                        {
-                            Id = r.Id,
-                            Title = r.Title,
-                            Url = r.Url,
-                            Type = r.Type.ToString(),
-                            IsCompleted = resourceProgress.ContainsKey(r.Id) && resourceProgress[r.Id].IsCompleted
-                        }).ToList()
+                        Id = r.Id,
+                        Title = r.Title,
+                        Url = r.Url,
+                        Type = r.Type.ToString(),
+                        IsCompleted = resourceProgress.ContainsKey(r.Id) && resourceProgress[r.Id].IsCompleted
                     }).ToList()
+                }).ToList()
             };
         }
 
@@ -136,8 +153,6 @@ namespace LearningAppNetCoreApi.Services
                 return new List<PathTemplateSummaryDto>();
             }
 
-
-            // A more comprehensive list of common words to ignore in the search.
             var stopWords = new HashSet<string> {
                 "a", "an", "the", "in", "on", "of", "for", "to", "with", "by",
                 "is", "are", "was", "were", "be", "been", "being",
@@ -218,7 +233,6 @@ namespace LearningAppNetCoreApi.Services
                     return await GetPathByIdAsync(existingUserPath.Id, firebaseUid);
                 }
 
-                // --- Create UserPath and Increment Counters ---
                 user.TotalPathsStarted++;
                 user.PathsGeneratedThisMonth++;
 
@@ -229,45 +243,14 @@ namespace LearningAppNetCoreApi.Services
                 };
                 _context.UserPaths.Add(newUserPath);
 
-                // This saves the new UserPath and the updated counters together.
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
                 _logger.LogInformation("User {FirebaseUid} has been assigned path {PathTemplateId}", firebaseUid, pathTemplateId);
 
-                var pathTemplate = await _context.PathTemplates
-                    .AsNoTracking()
-                    .Include(pt => pt.PathItems)
-                        .ThenInclude(pit => pit.Resources)
-                    .FirstAsync(pt => pt.Id == pathTemplateId);
-
-                return new LearningPathResponseDto
-                {
-                    UserPathId = newUserPath.Id,
-                    PathTemplateId = pathTemplate.Id,
-                    HasBeenRated = false, // A new path has not been rated
-                    HasOpenReport = false, // A new path has no open reports
-                    Title = pathTemplate.Title,
-                    Description = pathTemplate.Description,
-                    CreatedAt = newUserPath.StartedAt,
-                    PathItems = pathTemplate.PathItems
-                        .OrderBy(pi => pi.Order)
-                        .Select(pi => new PathItemResponseDto
-                        {
-                            Id = pi.Id,
-                            Title = pi.Title,
-                            Order = pi.Order,
-                            IsCompleted = false, // Always false for a new path
-                            Resources = pi.Resources.Select(r => new ResourceResponseDto
-                            {
-                                Id = r.Id,
-                                Title = r.Title,
-                                Url = r.Url,
-                                Type = r.Type.ToString(),
-                                IsCompleted = false
-                            }).ToList()
-                        }).ToList()
-                };
+                // Call GetPathByIdAsync to build the response
+                // This ensures the logic for assembling the path is in one place.
+                return await GetPathByIdAsync(newUserPath.Id, firebaseUid);
             }
             catch (Exception)
             {
@@ -501,7 +484,8 @@ namespace LearningAppNetCoreApi.Services
 
         public async Task<List<PathItemResponseDto>> ExtendLearningPathAsync(int userPathId, string firebaseUid)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new InvalidOperationException("User not found.");
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid)
+                ?? throw new InvalidOperationException("User not found.");
 
             ResetMonthlyUsageCounters(user);
 
@@ -512,29 +496,42 @@ namespace LearningAppNetCoreApi.Services
                 throw new UsageLimitExceededException("You have reached your monthly limit for extending paths. Consider upgrading to continue.");
             }
 
+            // Fetch the user's path instance and the base template information.
             var userPath = await _context.UserPaths
-                .Include(up => up.PathTemplate)
-                    .ThenInclude(pt => pt.PathItems)
-                    .ThenInclude(pit => pit.Resources)
-                    .AsSplitQuery()
+                .Include(up => up.PathTemplate) // We still need the title/description
                 .FirstOrDefaultAsync(up => up.Id == userPathId && up.UserId == user.Id)
                 ?? throw new InvalidOperationException("Learning path not found for this user.");
 
-            var newItemsFromGemini = await GetNextPathItemsFromGemini(userPath.PathTemplate);
-            if (newItemsFromGemini == null || newItemsFromGemini.Count == 0) return new List<PathItemResponseDto>();
+            // Get all existing items for this path (base + previous extensions) to provide context to the AI.
+            var allCurrentItems = await _context.PathItemTemplates
+                .Include(pit => pit.Resources)
+                .Where(pit => pit.PathTemplateId == userPath.PathTemplateId && pit.UserPathId == null || pit.UserPathId == userPathId)
+                .ToListAsync();
 
-            var forkedPathTemplate = ForkPathTemplate(userPath.PathTemplate);
+            // Create a temporary PathTemplate object to pass to the Gemini helper
+            var contextPathTemplate = userPath.PathTemplate;
+            contextPathTemplate.PathItems = allCurrentItems;
 
-            var newPathItemTemplates = await CreateNewPathItemTemplatesAsync(newItemsFromGemini, forkedPathTemplate);
-            forkedPathTemplate.PathItems.AddRange(newPathItemTemplates);
+            // Get the new items from the AI.
+            var newItemsFromGemini = await GetNextPathItemsFromGemini(contextPathTemplate);
+            if (newItemsFromGemini == null || !newItemsFromGemini.Any())
+            {
+                return new List<PathItemResponseDto>();
+            }
 
-            userPath.PathTemplate = forkedPathTemplate;
+            // Create the new PathItemTemplates, but this time, link them to the user's path.
+            // The ForkPathTemplate method is no longer needed.
+            var newPathItemTemplates = await CreateNewPathItemTemplatesAsync(newItemsFromGemini, contextPathTemplate, userPathId);
 
+            // Add the new items to the database.
+            _context.PathItemTemplates.AddRange(newPathItemTemplates);
+
+            // Increment the user's usage counter.
             user.PathsExtendedThisMonth++;
 
-            await _context.SaveChangesAsync(); // This will now correctly save the new PathTemplate
-                                               // and then update userPath to reference its *actual* generated ID.
+            await _context.SaveChangesAsync();
 
+            // Map only the newly created items to return to the frontend.
             return MapPathItemsToDto(newPathItemTemplates);
         }
 
@@ -947,33 +944,62 @@ namespace LearningAppNetCoreApi.Services
             };
         }
 
-        private async Task<List<PathItemTemplate>> CreateNewPathItemTemplatesAsync(List<GeminiPathItemDto> newItemsFromGemini, PathTemplate forkedPathTemplate)
+        private async Task<List<PathItemTemplate>> CreateNewPathItemTemplatesAsync(
+            List<GeminiPathItemDto> itemsFromGemini,
+            PathTemplate parentPathTemplate,
+            int? userPathId = null)
         {
-            var highestOrder = forkedPathTemplate.PathItems.Any()
-                ? forkedPathTemplate.PathItems.Max(pi => pi.Order)
+            var highestOrder = parentPathTemplate.PathItems?.Any() ?? false
+                ? parentPathTemplate.PathItems.Max(pi => pi.Order)
                 : 0;
 
             var newPathItemTemplates = new List<PathItemTemplate>();
 
-            foreach (var itemDto in newItemsFromGemini)
+            foreach (var itemDto in itemsFromGemini)
             {
                 var pathItemTemplate = new PathItemTemplate
                 {
                     Title = itemDto.Title,
                     Order = highestOrder + newPathItemTemplates.Count + 1,
-                    Resources = new List<ResourceTemplate>()
+                    Resources = new List<ResourceTemplate>(),
+                    PathTemplateId = parentPathTemplate.Id,
+                    UserPathId = userPathId
                 };
 
-                foreach (var resourceDto in itemDto.Resources ?? new List<GeminiResourceDto>())
+                var uniqueResources = itemDto.Resources
+                    .GroupBy(r => r.Title)
+                    .Select(g => g.First())
+                    .ToList();
+
+                foreach (var resourceDto in uniqueResources)
                 {
                     if (string.IsNullOrEmpty(resourceDto.SearchQuery)) continue;
 
                     var resourceType = Enum.Parse<ItemType>(resourceDto.Type, true);
-                    string? resourceUrl = (resourceType == ItemType.Video)
-                        ? await SearchForYouTubeVideoAsync(resourceDto.SearchQuery)
-                        : await SearchForUrlAsync(resourceDto.SearchQuery);
+                    string? resourceUrl = null;
 
-                    if (!string.IsNullOrEmpty(resourceUrl))
+                    if (resourceDto.SearchQuery.ToLower().Contains("youtube") ||
+                        resourceDto.SearchQuery.ToLower().Contains("video") ||
+                        resourceType == ItemType.Video)
+                    {
+                        resourceUrl = await SearchForYouTubeVideoAsync(resourceDto.SearchQuery);
+                        resourceType = ItemType.Video;
+                    }
+                    else
+                    {
+                        resourceUrl = await SearchForUrlAsync(resourceDto.SearchQuery);
+                    }
+
+                    if (resourceUrl == "QUOTA_EXCEEDED")
+                    {
+                        pathItemTemplate.Resources.Add(new ResourceTemplate
+                        {
+                            Title = $"{resourceDto.Title} (Video temporarily unavailable)",
+                            Type = resourceType,
+                            Url = ""
+                        });
+                    }
+                    else if (!string.IsNullOrEmpty(resourceUrl))
                     {
                         pathItemTemplate.Resources.Add(new ResourceTemplate
                         {

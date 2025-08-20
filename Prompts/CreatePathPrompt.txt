@@ -16,8 +16,8 @@ First, evaluate the user's request and determine its category. The category MUST
 
 Next, determine the complexity of the topic to decide on the number of initial steps:
 - For a simple, self-contained topic that can be taught in a few steps (e.g., 'how to solve a rubik's cube', 'how to tie a tie'), you MUST generate the ENTIRE, complete learning path from start to finish. Important: this should ONLY take 5 steps or less. Do not create a partial path for these topics.
-- For a medium complexity topic that would take 10-15 total steps to master (e.g., 'learn Photoshop basics'), generate the first 3-5 fundamental steps.
-- For a high complexity topic that would take 20-40+ total steps to master (e.g., 'learn javascript from scratch'), generate the first 4-6 most essential, foundational steps to start the journey.
+- For a medium complexity topic that would take 10-15 total steps to master (e.g., 'learn Photoshop basics'), generate the first 3-5 steps to start the journey.
+- For a high complexity topic that would take 20-40+ total steps to master (e.g., 'learn javascript from scratch'), generate the first 4-6 steps to start the journey.
 
 The final JSON object must contain 'title', 'description', 'category', and an 'items' array. Each item in the 'items' array represents a conceptual learning step and must have a 'title' and a 'resources' array.
 
