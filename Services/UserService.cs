@@ -1,11 +1,12 @@
-﻿using LearningAppNetCoreApi.Models;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using Bogus;
+﻿using Bogus;
 using FirebaseAdmin.Auth;
-using LearningAppNetCoreApi.Dtos;
 using LearningAppNetCoreApi.Constants;
+using LearningAppNetCoreApi.Dtos;
+using LearningAppNetCoreApi.Exceptions;
+using LearningAppNetCoreApi.Models;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using System.Security.Claims;
 
 namespace LearningAppNetCoreApi.Services
 {
@@ -31,6 +32,16 @@ namespace LearningAppNetCoreApi.Services
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
             if (user != null)
             {
+                if (user.IsDeleted)
+                {
+                    var cooldown = TimeSpan.FromDays(30);
+                    if (DateTime.UtcNow - user.DeletedAt < cooldown)
+                    {
+                        // If they are within the cooldown, throw the specific exception.
+                        throw new AccountInCooldownException("This account was recently deleted. Please try again later or restore it.");
+                    }
+                }
+
                 // If user exists, just update the login date and return.
                 user.LastLoginDate = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
@@ -175,49 +186,39 @@ namespace LearningAppNetCoreApi.Services
             return true;
         }
 
-        public async Task<bool> DeleteUserAsync(string firebaseUid)
+        public async Task<bool> SoftDeleteAccountAsync(string firebaseUid)
         {
-            // Find the user in your local database
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
-            if (user != null)
+            if (user == null || user.IsDeleted)
             {
-                // If the user has related data (like UserPaths), you must delete that first
-                // to avoid foreign key constraint errors.
-                var userPaths = await _context.UserPaths
-                    .Where(up => up.UserId == user.Id)
-                    .ToListAsync();
+                // If the user doesn't exist or is already marked as deleted,
+                // there's nothing to do. Return false to indicate no change was made.
+                return false;
+            }
 
-                if (userPaths.Any())
-                {
-                    _context.UserPaths.RemoveRange(userPaths);
-                }
+            user.IsDeleted = true;
+            user.DeletedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
 
-                // Now remove the user from your database
-                _context.Users.Remove(user);
+            _logger.LogInformation("User {FirebaseUid} has been soft-deleted.", firebaseUid);
+
+            // Return true to signal that the operation was successful.
+            return true;
+        }
+
+        public async Task<bool> RestoreUserAsync(string firebaseUid)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+            if (user != null && user.IsDeleted)
+            {
+                user.IsDeleted = false;
+                user.DeletedAt = null;
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("User {FirebaseUid} has been restored.", firebaseUid);
+                return true;
             }
-
-            try
-            {
-                // Finally, delete the user from Firebase Authentication
-                await FirebaseAuth.DefaultInstance.DeleteUserAsync(firebaseUid);
-                return true; // Success
-            }
-            catch (FirebaseAuthException ex)
-            {
-                // Handle cases where the user might not exist in Firebase anymore
-                // but you still want to clean up your local DB.
-                // You can log this error for debugging.
-                Console.WriteLine($"Error deleting user from Firebase: {ex.Message}");
-                // If the user was not found in Firebase, we can consider it a success
-                // because the end goal (user is gone) is achieved.
-                if (ex.AuthErrorCode == AuthErrorCode.UserNotFound)
-                {
-                    return true;
-                }
-                return false; // An actual error occurred
-            }
+            return false;
         }
 
         #region Private methods

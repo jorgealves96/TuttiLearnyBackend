@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LearningAppNetCoreApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LearningAppNetCoreApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250812002123_AddDeletedFieldsToUserModel")]
+    partial class AddDeletedFieldsToUserModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -45,18 +48,11 @@ namespace LearningAppNetCoreApi.Migrations
                         .HasColumnType("text")
                         .HasColumnName("title");
 
-                    b.Property<int?>("UserPathId")
-                        .HasColumnType("integer")
-                        .HasColumnName("user_path_id");
-
                     b.HasKey("Id")
                         .HasName("pk_path_item_templates");
 
                     b.HasIndex("PathTemplateId")
                         .HasDatabaseName("ix_path_item_templates_path_template_id");
-
-                    b.HasIndex("UserPathId")
-                        .HasDatabaseName("ix_path_item_templates_user_path_id");
 
                     b.ToTable("path_item_templates", (string)null);
                 });
@@ -608,14 +604,7 @@ namespace LearningAppNetCoreApi.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_path_item_templates_path_templates_path_template_id");
 
-                    b.HasOne("LearningAppNetCoreApi.Models.UserPath", "UserPath")
-                        .WithMany()
-                        .HasForeignKey("UserPathId")
-                        .HasConstraintName("fk_path_item_templates_user_paths_user_path_id");
-
                     b.Navigation("PathTemplate");
-
-                    b.Navigation("UserPath");
                 });
 
             modelBuilder.Entity("LearningAppNetCoreApi.Models.PathReport", b =>

@@ -56,6 +56,19 @@ namespace LearningAppNetCoreApi.Controllers
             return Ok(resultMessage);
         }
 
+        [HttpPost("cleanup-soft-deleted-users")]
+        public async Task<IActionResult> CleanupSoftDeletedUsers([FromHeader(Name = "X-Scheduler-Secret")] string secretFromHeader)
+        {
+            var isAuthorized = await IsAuthorized(secretFromHeader);
+            if (!isAuthorized)
+            {
+                return Unauthorized("Invalid secret.");
+            }
+
+            var resultMessage = await _jobsService.RunPermanentUserDeletionJobAsync();
+            return Ok(resultMessage);
+        }
+
         private async Task<bool> IsAuthorized(string secretFromHeader)
         {
             try
