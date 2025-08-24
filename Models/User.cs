@@ -36,6 +36,8 @@ namespace LearningAppNetCoreApi.Models
         public bool NotificationsEnabled { get; set; } = true;
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
+        public LearningLevel LearningLevel { get; set; } = LearningLevel.Beginner;
+        public PathLength PathLength { get; set; } = PathLength.Standard;
     }
 
     public enum SubscriptionTier
@@ -43,5 +45,19 @@ namespace LearningAppNetCoreApi.Models
         Free,
         Pro,      // Tier 1
         Unlimited // Tier 2
+    }
+
+    public enum LearningLevel
+    {
+        Beginner,
+        Intermediate,
+        Advanced
+    }
+
+    public enum PathLength
+    {
+        Quick,      // ~3 steps
+        Standard,   // ~5-7 steps
+        InDepth     // ~10+ steps
     }
 }

@@ -353,7 +353,7 @@ namespace LearningAppNetCoreApi.Services
 
                 _logger.LogInformation($"User {firebaseUid} calling Gemini API for prompt: {prompt}");
 
-                var geminiResponse = await GetLearningPathFromGemini(prompt);
+                var geminiResponse = await GetLearningPathFromGemini(prompt, user);
 
                 if (!string.IsNullOrEmpty(geminiResponse.Error))
                 {
@@ -721,12 +721,15 @@ namespace LearningAppNetCoreApi.Services
 
         #region Private Methods
 
-        private async Task<GeminiResponseDto> GetLearningPathFromGemini(string userPrompt)
+        private async Task<GeminiResponseDto> GetLearningPathFromGemini(string userPrompt, User user)
         {
             var apiUrl = GetGeminiApiUrl();
             var promptTemplatePath = Path.Combine(_env.ContentRootPath, "Prompts", "CreatePathPrompt.txt");
             var promptTemplate = await File.ReadAllTextAsync(promptTemplatePath);
-            var fullPrompt = promptTemplate.Replace("{userPrompt}", userPrompt);
+            var fullPrompt = promptTemplate
+                .Replace("{userPrompt}", userPrompt)
+                .Replace("{learningLevel}", user.LearningLevel.ToString())
+                .Replace("{pathLength}", user.PathLength.ToString());
 
             var payload = new
             {

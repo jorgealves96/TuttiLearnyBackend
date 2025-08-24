@@ -33,6 +33,25 @@ namespace LearningAppNetCoreApi.Controllers
         }
 
         [Authorize]
+        [HttpGet("me/settings")]
+        public async Task<IActionResult> GetUserSettings()
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid))
+            {
+                return Unauthorized("User UID not found in token.");
+            }
+
+            var settings = await _userService.GetUserSettingsAsync(firebaseUid);
+            if (settings == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            return Ok(settings);
+        }
+
+        [Authorize]
         [HttpPost("sync")]
         public async Task<IActionResult> SyncUser()
         {
@@ -84,6 +103,26 @@ namespace LearningAppNetCoreApi.Controllers
             }
 
             return Ok(new { message = "Notification preference updated successfully." });
+        }
+
+        [Authorize]
+        [HttpPatch("me/path-generation-settings")]
+        public async Task<IActionResult> UpdatePathGenerationSettings([FromBody] UpdatePathGenerationSettingsDto request)
+        {
+            var firebaseUid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(firebaseUid))
+            {
+                return Unauthorized("User UID not found in token.");
+            }
+
+            var success = await _userService.UpdatePathGenerationSettingsAsync(firebaseUid, request);
+
+            if (success)
+            {
+                return Ok(new { message = "Path generation settings updated successfully." });
+            }
+
+            return NotFound(new { message = "User not found." });
         }
 
         [Authorize]

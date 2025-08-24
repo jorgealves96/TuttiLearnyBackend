@@ -148,6 +148,24 @@ namespace LearningAppNetCoreApi.Services
             return dto;
         }
 
+        public async Task<UserSettingsDto?> GetUserSettingsAsync(string firebaseUid)
+        {
+            var user = await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+
+            if (user == null)
+            {
+                return null; // User not found
+            }
+
+            return new UserSettingsDto
+            {
+                LearningLevel = user.LearningLevel,
+                PathLength = user.PathLength
+            };
+        }
+
         public async Task<User> UpdateUserNameAsync(string firebaseUid, string newName)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
@@ -182,6 +200,32 @@ namespace LearningAppNetCoreApi.Services
 
             user.NotificationsEnabled = isEnabled;
             await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        public async Task<bool> UpdatePathGenerationSettingsAsync(string firebaseUid, UpdatePathGenerationSettingsDto settings)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+
+            if (user == null)
+            {
+                return false;
+            }
+
+            if (settings.LearningLevel.HasValue)
+            {
+                user.LearningLevel = settings.LearningLevel.Value;
+            }
+
+            if (settings.PathLength.HasValue)
+            {
+                user.PathLength = settings.PathLength.Value;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Updated path generation settings for user {FirebaseUid}", firebaseUid);
 
             return true;
         }
