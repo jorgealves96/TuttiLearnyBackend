@@ -14,5 +14,7 @@ namespace LearningAppNetCoreApi.Services
         Task<bool> UpdateNotificationPreferenceAsync(string firebaseUid, bool isEnabled);
         Task<bool> SoftDeleteAccountAsync(string firebaseUid);
         Task<bool> RestoreUserAsync(string firebaseUid);
+        Task<bool> UpdatePathGenerationSettingsAsync(string firebaseUid, UpdatePathGenerationSettingsDto settings);
+        Task<UserSettingsDto?> GetUserSettingsAsync(string firebaseUid);
     }
 }

@@ -5,19 +5,21 @@ It is critical that your JSON is perfectly formatted. Do not use trailing commas
 
 Before generating a path, you must first critically evaluate the user's request. The request must be a clear and understandable topic, skill, or subject that can be taught. If the request is nonsensical, gibberish, a single ambiguous word (e.g., 'cars'), or a proper noun without context (e.g., 'Wawa'), it is not a valid learning path. In such cases, you MUST NOT generate a path. Instead, return a JSON object with an 'error' field and a helpful message, for example: `{"error": "Please provide a clearer learning topic. Your request was too vague or nonsensical."}`
 
-Analyze the user's prompt to infer the intended skill level. The tone should be practical, educational, and accessible for that level.
-If the prompt implies a beginner level (e.g., "how to start," "introduction to," "for beginners"), create a path suitable for someone with no prior knowledge.
-If the prompt implies an advanced level (e.g., "advanced," "mastering," "deep dive"), assume the user has foundational knowledge and create a path with more complex, in-depth topics.
-If no skill level is specified, you MUST default to creating a path for an absolute beginner.
+You will be provided with a specific 'learningLevel'. You MUST tailor the generated path and its resources to this exact level.
+- If 'learningLevel' is 'Beginner', create a path suitable for someone with no prior knowledge. Start with the absolute fundamentals.
+- If 'learningLevel' is 'Intermediate', assume the user has foundational knowledge and focus on more practical, in-depth topics.
+- If 'learningLevel' is 'Advanced', create a path with complex, expert-level topics.
+
+You will be provided with a 'pathLength'. You should AIM to generate a number of steps appropriate for this length.
+- If 'pathLength' is 'Quick', aim for a concise path of 2-3 steps.
+- If 'pathLength' is 'Standard', aim for a comprehensive path of 5-7 steps.
+- If 'pathLength' is 'InDepth', aim for a detailed path of 10-12 steps.
+
+**IMPORTANT EXCEPTION:** If the user requests an 'Advanced' or 'InDepth' path for a topic that seems simple, you must first attempt to find niche, expert-level sub-topics. For example, for "how to shuffle cards," an advanced path could include topics like "the Zarrow shuffle" or "cardistry basics." For "paper airplanes," an advanced path could cover "aerodynamic principles" or "complex origami designs.". Only if no meaningful advanced or in-depth content can be found for the topic should you generate a shorter, complete path and override the user's 'pathLength' settings.
 
 Your primary goal is to create learning steps that can be taught via video. For each conceptual learning step, you MUST generate at least one resource of type 'Video'. You may optionally include one other resource type (like 'Article' or 'Documentation') if it provides essential supplementary information. IMPORTANT: For the entire learning path you generate, you may include a maximum of two resources that are NOT of type 'Video'.
 
 First, evaluate the user's request and determine its category. The category MUST be one of the following strings: 'Technology', 'CreativeArts', 'Music', 'Business', 'Wellness', 'LifeSkills', 'Gaming', 'Academic', 'Other'.
-
-Next, determine the complexity of the topic to decide on the number of initial steps:
-- For a simple, self-contained topic that can be taught in a few steps (e.g., 'how to solve a rubik's cube', 'how to tie a tie'), you MUST generate the ENTIRE, complete learning path from start to finish. Important: this should ONLY take 5 steps or less. Do not create a partial path for these topics.
-- For a medium complexity topic that would take 10-15 total steps to master (e.g., 'learn Photoshop basics'), generate the first 3-5 steps to start the journey.
-- For a high complexity topic that would take 20-40+ total steps to master (e.g., 'learn javascript from scratch'), generate the first 4-6 steps to start the journey.
 
 The final JSON object must contain 'title', 'description', 'category', and an 'items' array. Each item in the 'items' array represents a conceptual learning step and must have a 'title' and a 'resources' array.
 
@@ -27,3 +29,9 @@ Each object in the 'resources' array must have a 'title', a 'type', and a 'searc
 
 User Request:
 '{userPrompt}'
+
+Learning Level:
+'{learningLevel}'
+
+Path Length:
+'{pathLength}'
