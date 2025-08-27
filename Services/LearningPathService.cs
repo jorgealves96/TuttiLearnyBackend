@@ -144,6 +144,8 @@ namespace LearningAppNetCoreApi.Services
             var user = await _context.Users.FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid) ?? throw new Exception("User not found.");
             ResetMonthlyUsageCounters(user);
 
+            return new List<PathTemplateSummaryDto>(); // Disabling suggestions for now.
+
             // Then, check the user's limit before proceeding
             var pathLimit = GetPathGenerationLimitForTier(user.Tier);
             if (pathLimit.HasValue && user.PathsGeneratedThisMonth >= pathLimit.Value)
@@ -168,7 +170,7 @@ namespace LearningAppNetCoreApi.Services
                 .Where(kw => !stopWords.Contains(kw))
                 .ToList();
 
-            if (!keywords.Any())
+            if (keywords.Count == 0)
             {
                 // If the prompt only contained stop words, return an empty list.
                 return new List<PathTemplateSummaryDto>();
@@ -514,7 +516,7 @@ namespace LearningAppNetCoreApi.Services
 
             // Get the new items from the AI.
             var newItemsFromGemini = await GetNextPathItemsFromGemini(contextPathTemplate);
-            if (newItemsFromGemini == null || !newItemsFromGemini.Any())
+            if (newItemsFromGemini == null || newItemsFromGemini.Count == 0)
             {
                 return new List<PathItemResponseDto>();
             }
@@ -530,6 +532,8 @@ namespace LearningAppNetCoreApi.Services
             user.PathsExtendedThisMonth++;
 
             await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"User {firebaseUid} extending user path ID {userPathId}");
 
             // Map only the newly created items to return to the frontend.
             return MapPathItemsToDto(newPathItemTemplates);

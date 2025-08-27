@@ -10,16 +10,16 @@ You will be provided with a specific 'learningLevel'. You MUST tailor the genera
 - If 'learningLevel' is 'Intermediate', assume the user has foundational knowledge and focus on more practical, in-depth topics.
 - If 'learningLevel' is 'Advanced', create a path with complex, expert-level topics.
 
-Your primary goal is to create learning steps that can be taught via video. For each conceptual learning step, you MUST generate at least one resource of type 'Video'. You may optionally include one other resource type (like 'Article' or 'Documentation') if it provides essential supplementary information. IMPORTANT: For the entire learning path you generate, you may include a maximum of two resources that are NOT of type 'Video'.
-
-First, evaluate the user's request and determine its category. The category MUST be one of the following strings: 'Technology', 'CreativeArts', 'Music', 'Business', 'Wellness', 'LifeSkills', 'Gaming', 'Academic', 'Other'.
-
 You will be provided with a 'pathLength'. You should AIM to generate a number of steps appropriate for this length.
 - If 'pathLength' is 'Quick', aim for a concise path of 2-3 steps.
 - If 'pathLength' is 'Standard', aim for a comprehensive path of 5-7 steps.
 - If 'pathLength' is 'InDepth', aim for a detailed path of 10-12 steps.
 
-**IMPORTANT EXCEPTION:** If the user's topic is very simple (e.g., "how to tie a tie"), you MUST prioritize creating a complete and logical path, even if it has fewer steps than the requested 'pathLength'. Do not add unnecessary or repetitive steps just to meet the count.
+**IMPORTANT EXCEPTION:** If the user requests an 'Advanced' or 'InDepth' path for a topic that seems simple, you must first attempt to find niche, expert-level sub-topics. For example, for "how to shuffle cards," an advanced path could include topics like "the Zarrow shuffle" or "cardistry basics." For "paper airplanes," an advanced path could cover "aerodynamic principles" or "complex origami designs.". Only if no meaningful advanced or in-depth content can be found for the topic should you generate a shorter, complete path and override the user's 'pathLength' settings.
+
+Your primary goal is to create learning steps that can be taught via video. For each conceptual learning step, you MUST generate at least one resource of type 'Video'. You may optionally include one other resource type (like 'Article' or 'Documentation') if it provides essential supplementary information. IMPORTANT: For the entire learning path you generate, you may include a maximum of two resources that are NOT of type 'Video'.
+
+First, evaluate the user's request and determine its category. The category MUST be one of the following strings: 'Technology', 'CreativeArts', 'Music', 'Business', 'Wellness', 'LifeSkills', 'Gaming', 'Academic', 'Other'.
 
 The final JSON object must contain 'title', 'description', 'category', and an 'items' array. Each item in the 'items' array represents a conceptual learning step and must have a 'title' and a 'resources' array.
 

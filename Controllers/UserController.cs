@@ -20,6 +20,7 @@ namespace LearningAppNetCoreApi.Controllers
             _logger = logger;
         }
 
+        [Authorize]
         [HttpGet("me/subscription-status")]
         public async Task<IActionResult> GetMySubscriptionStatus()
         {
