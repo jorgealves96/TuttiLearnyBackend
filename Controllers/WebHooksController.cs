@@ -35,6 +35,13 @@ namespace LearningAppNetCoreApi.Controllers
             var evt = webhook.Event;
             if (evt == null) return BadRequest();
 
+            _logger.LogInformation(
+                "Received RevenueCat Webhook. Type: {EventType}, User: {AppUserId}, ProductID: {ProductId}",
+                evt.Type,
+                evt.AppUserId,
+                evt.ProductId
+            );
+
             switch (evt.Type)
             {
                 case "INITIAL_PURCHASE":
