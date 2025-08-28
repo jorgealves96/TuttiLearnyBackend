@@ -22,15 +22,10 @@ namespace LearningAppNetCoreApi.Controllers
         {
             if (!Request.Headers.TryGetValue("Authorization", out var authHeader))
             {
-                _logger.LogWarning("RevenueCat webhook failed: Authorization header was missing.");
                 return Unauthorized("Authorization header is missing.");
             }
 
             var expectedSecret = Environment.GetEnvironmentVariable("RevenueCatWebhookSecret");
-
-            _logger.LogInformation("Verifying RevenueCat webhook secret.");
-            _logger.LogInformation("Header Received: '{AuthHeader}'", authHeader);
-            _logger.LogInformation("Secret Expected: 'Bearer {ExpectedSecret}'", expectedSecret);
 
             if (authHeader != $"Bearer {expectedSecret}")
             {
