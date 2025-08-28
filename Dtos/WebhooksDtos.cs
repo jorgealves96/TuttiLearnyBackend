@@ -1,25 +1,24 @@
-﻿using Newtonsoft.Json;
-
+﻿using System.Text.Json.Serialization;
 namespace LearningAppNetCoreApi.Dtos
 {
     public class RevenueCatWebhookDto
     {
-        [JsonProperty("event")]
+        [JsonPropertyName("event")]
         public RevenueCatEventDto Event { get; set; }
     }
 
     public class RevenueCatEventDto
     {
-        [JsonProperty("type")]
+        [JsonPropertyName("type")]
         public string Type { get; set; }
 
-        [JsonProperty("app_user_id")]
+        [JsonPropertyName("app_user_id")]
         public string AppUserId { get; set; } // This is the Firebase UID
 
-        [JsonProperty("product_id")]
+        [JsonPropertyName("product_id")]
         public string ProductId { get; set; } // e.g., "pro_monthly"
 
-        [JsonProperty("expiration_at_ms")]
+        [JsonPropertyName("expiration_at_ms")]
         public long ExpirationAtMs { get; set; } // Expiration date in milliseconds
     }
 }
