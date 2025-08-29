@@ -55,10 +55,10 @@ namespace LearningAppNetCoreApi.Services
             // Map the RevenueCat product ID to your app's SubscriptionTier enum
             var newTier = productId switch
             {
-                "pro_monthly" => SubscriptionTier.Pro,
-                "pro_yearly" => SubscriptionTier.Pro,
-                "unlimited_monthly" => SubscriptionTier.Unlimited,
-                "unlimited_yearly" => SubscriptionTier.Unlimited,
+                "pro_monthly:monthly" => SubscriptionTier.Pro,
+                "pro_yearly:yearly" => SubscriptionTier.Pro,
+                "unlimited_monthly:monthly" => SubscriptionTier.Unlimited,
+                "unlimited_yearly:yearly" => SubscriptionTier.Unlimited,
                 _ => user.Tier // If the product ID is unknown, don't change the tier
             };
 
