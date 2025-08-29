@@ -881,6 +881,7 @@ namespace LearningAppNetCoreApi.Services
             }
         }
 
+        /*
         private async Task<string?> SearchForYouTubeVideoAsync(string query)
         {
             var apiKey = _configuration["YouTube:ApiKey"];
@@ -924,6 +925,31 @@ namespace LearningAppNetCoreApi.Services
             {
                 Console.WriteLine($"Error during Youtube search: {ex.Message}");
                 // For any other exception, return null.
+                return null;
+            }
+        }
+        */
+
+        private async Task<string?> SearchForYouTubeVideoAsync(string query)
+        {
+            // WORKAROUND: Use Google Custom Search to find YouTube videos
+            // until the YouTube API quota is approved. This avoids using the YouTube API key.
+            _logger.LogInformation("Using Custom Search API as a fallback for YouTube search for query: {Query}", query);
+
+            // Add "site:youtube.com" to the query to restrict results to YouTube.
+            // Also, adding "video" can help prioritize video results.
+            var youtubeQuery = $"{query} video site:youtube.com";
+
+            // Call your existing web search method with the modified query.
+            // This leverages your working Google Custom Search API setup.
+            try
+            {
+                return await SearchForUrlAsync(youtubeQuery);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Fallback YouTube search using Custom Search failed for query: {Query}", query);
+                // Return null if the fallback search fails for any reason.
                 return null;
             }
         }
